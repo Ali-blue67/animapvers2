@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>DLSU-D HS Complex Navigator</title>
+        <link rel="stylesheet" href="styles/general.css" />
+        <link rel="stylesheet" href="styles/app-shell.css" />
+        <link rel="stylesheet" href="styles/map-viewer.css" />
+        <link rel="stylesheet" href="styles/navigation.css" />
+    </head>
+    <body>
+
+        <div id="loading-screen">
+            <div class="spinner-container">
+                <svg class="modern-spinner" width="64" height="64" viewBox="0 0 64 64">
+                    <circle class="spinner-track" cx="32" cy="32" r="28" />
+                    <circle id="loading-fill" class="spinner-fill" cx="32" cy="32" r="28" />
+                </svg>
+            </div>
+            <div class="loading-title">AniMap loading...</div>
+        </div>
+
+        <div class="app-shell">
+            <header class="site-header">
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+                </svg>
+            </button>
+            <h1>DLSU-D HS Complex Navigator</h1>
+            </header>
+
+            <div class="app-body">
+            <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+            <nav class="sidebar" id="sidebar">
+                <button class="sidebar-tab active" data-tab="home-panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" />
+                </svg>
+                3D Model
+                </button>
+                <button class="sidebar-tab" data-tab="navigation-panel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                2D Navigation
+                </button>
+            </nav>
+
+            <main class="main-content">
+
+                <!-- TAB 1: 3D MODEL -->
+                <section id="home-panel" class="tab-panel active map-viewer-panel">
+                <div class="level-switcher" id="model-level-switcher"></div>
+                <div class="model-canvas-container" id="model-canvas-container"></div>
+                <p class="model-hint" id="model-status">Loading model&hellip;</p>
+                </section>
+
+                <!-- TAB 2: 2D NAVIGATION -->
+                <section id="navigation-panel" class="tab-panel">
+                <div class="nav-toolbar">
+                    <div class="level-switcher" id="floor-switcher"></div>
+                    <div class="floor-updown">
+                    <button id="floor-down-btn" disabled aria-label="Floor below">&darr;</button>
+                    <button id="floor-up-btn" disabled aria-label="Floor above">&uarr;</button>
+                    </div>
+                </div>
+
+                <div class="route-controls">
+                    <div class="search-field">
+                    <label for="from-input">Current location</label>
+                    <input type="text" id="from-input" placeholder="Search a room..." autocomplete="off" />
+                    <ul class="suggestions" id="from-suggestions"></ul>
+                    </div>
+                    <div class="search-field">
+                    <label for="to-input">Going to</label>
+                    <input type="text" id="to-input" placeholder="Search a room..." autocomplete="off" />
+                    <ul class="suggestions" id="to-suggestions"></ul>
+                    </div>
+                    <div class="route-actions">
+                    <button id="find-route-btn">Find route</button>
+                    <button id="replay-btn" disabled>Replay</button>
+                    <button id="reset-btn">Reset</button>
+                    </div>
+                </div>
+
+                <p class="route-message" id="route-message"></p>
+                <div class="leg-banner" id="leg-banner"></div>
+
+                <div class="map-container">
+                    <svg id="floor-plan-svg"></svg>
+                </div>
+                </section>
+
+            </main>
+            </div>
+        </div>
+
+        <script src="scripts/loading.js"></script>
+        <script src="scripts/sidebar.js"></script>
+
+        <script type="importmap">
+        {
+            "imports": {
+            "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+            }
+        }
+        </script>
+        <script type="module" src="scripts/model-viewer.js"></script>
+        <script type="module" src="scripts/navigation.js"></script>
+    </body>
+</html>

@@ -1,0 +1,55 @@
+.welcome-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px 20px;
+    gap: 18px;
+}
+
+.welcome-graphic {
+    width: min(200px, 45vw);
+    margin-bottom: 8px;
+}
+
+.welcome-screen h1 {
+    font-size: clamp(22px, 4vw, 30px);
+    color: var(--color-primary);
+}
+
+.welcome-screen p {
+    max-width: 520px;
+    color: var(--color-text-muted);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.enter-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    padding: 14px 28px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.enter-link:hover {
+    background: rgb(64, 154, 64);
+    color: rgb(107, 238, 218);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.title-text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

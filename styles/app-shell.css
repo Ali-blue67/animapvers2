@@ -1,0 +1,254 @@
+
+
+.loading-title {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.loading-track {
+  width: min(320px, 70vw);
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 56px;
+  flex-shrink: 0;
+  background: rgb(35, 135, 35);
+  color: #fff;
+}
+
+.site-header h1 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hamburger-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.hamburger-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.hamburger-btn:hover {
+  background: rgba(2, 65, 5, 0.43);
+  border-radius: 8px;
+}
+
+.hamburger-btn:active {
+  background: rgba(2, 65, 5, 0.63);
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: rgb(15, 88, 15);
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.25s ease;
+  overflow-y: auto;
+}
+
+.sidebar-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-tab svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.sidebar-tab.active {
+  background: rgb(83, 223, 241);
+  color: #1c1c1c;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+  height: 100%;
+}
+
+/* Below this width, the sidebar becomes a slide-out drawer behind a
+   hamburger button instead of a permanent column. */
+@media (max-width: 860px) {
+  .hamburger-btn {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+
+#loading-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: var(--color-bg, #ffffff); /* Fallback to clean white if token isn't ready */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    transition: opacity 0.5s ease;
+}
+
+#loading-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.spinner-container {
+    position: relative;
+    width: 64px;
+    height: 64px;
+}
+
+.modern-spinner {
+    /* Rotates the entire container to give a modern dual-action feeling */
+    animation: spinnerRotate 5.5s linear infinite;
+    transform-origin: center;
+}
+
+.spinner-track {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.06); /* Soft, modern light-grey background track */
+    stroke-width: 4.5px;
+}
+
+.spinner-fill {
+    fill: none;
+    stroke: #10b981; /* Modern vibrant emerald green */
+    stroke-width: 4.5px;
+    stroke-linecap: round;
+    
+    /* Mathematical circumference configuration for an exact radius of 28: (2 * pi * 28) = ~176 */
+    stroke-dasharray: 176; 
+    stroke-dashoffset: 176; /* Starts fully empty */
+    
+    /* Smoothly animates forward as your model-viewer script injects percentages */
+    transition: stroke-dashoffset 0.2s ease; 
+}
+
+.loading-title {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #6b7280);
+}
+
+/* Continuous smooth clockwise rotation */
+@keyframes spinnerRotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
