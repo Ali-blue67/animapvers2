@@ -1,0 +1,343 @@
+/* ==========================================================
+   Design tokens + base. One green, one neutral family, tinted
+   shadows, one radius scale. Light theme only (green and white).
+   ========================================================== */
+
+@font-face {
+  font-family: 'Outfit Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../fonts/outfit-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Work Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../fonts/work-sans-latin-wght-normal.woff2') format('woff2');
+}
+
+:root {
+  color-scheme: light;
+
+  --green-950: #04301f;
+  --green-900: #07472e;
+  --green-800: #0b5d3b; /* brand */
+  --green-700: #0f7a4d;
+  --green-600: #17935f;
+  --green-200: #bfe3cf;
+  --green-100: #dcf0e5;
+  --green-50: #eff8f3;
+
+  --bg: #f6faf7;
+  --surface: #ffffff;
+  --ink: #12211a;
+  --ink-2: #3d4f45;
+  --muted: #5b6d63;
+  --line: #dbe6df;
+  --line-strong: #bfd0c6;
+
+  --route: #dc2626;
+  --danger: #b42318;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(7, 71, 46, 0.06), 0 1px 1px rgba(7, 71, 46, 0.04);
+  --shadow-md: 0 14px 32px -14px rgba(7, 71, 46, 0.28), 0 2px 6px rgba(7, 71, 46, 0.06);
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur: 220ms;
+
+  --font-display: 'Outfit Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Work Sans Variable', 'Segoe UI', system-ui, sans-serif;
+
+  --header-h: 60px;
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--green-700);
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100%;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+a {
+  color: inherit;
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+/* ---------- Focus: always visible for keyboard, quiet for mouse ---------- */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------- Utilities ---------- */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: var(--r-sm);
+  background: var(--green-800);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform var(--dur) var(--ease);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--green-800);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--green-900);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--green-50);
+  border-color: var(--green-700);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: inherit;
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Segmented control (floor / level / preference switchers) ---------- */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.segmented-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.segmented-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: calc(var(--r-md) - 3px);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.segmented button:hover {
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--green-800);
+  color: #fff;
+  font-weight: 600;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.btn-sm {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 0.875rem;
+}
+
+/* ---------- Brand (header of both pages) ---------- */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--green-800);
+  color: #fff;
+}
+
+.nowrap {
+  white-space: nowrap;
+}

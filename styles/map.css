@@ -1,0 +1,113 @@
+/* Floor-plan drawing styles, shared by the 2D tab and the welcome preview. */
+.map-svg {
+  font-family: var(--font-body);
+}
+
+.building-label {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  fill: var(--green-800);
+  text-anchor: middle;
+}
+
+.hallway-line {
+  fill: none;
+  stroke: #d0e9db;
+  stroke-width: 34;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.room-stub {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+
+.room-rect {
+  fill: #fff;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  transition: fill var(--dur) var(--ease), stroke var(--dur) var(--ease);
+}
+
+.room.highlight .room-rect {
+  fill: var(--green-100);
+  stroke: var(--green-700);
+  stroke-width: 2.5;
+}
+
+.room-name,
+.room-code {
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.room-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.room-code {
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.connector-marker {
+  fill: #fff;
+  stroke: var(--green-700);
+  stroke-width: 1.75;
+  transition: fill var(--dur) var(--ease), stroke var(--dur) var(--ease);
+}
+
+.room.highlight .connector-marker {
+  fill: var(--green-100);
+  stroke: var(--route);
+  stroke-width: 3;
+}
+
+.connector-icon {
+  fill: none;
+  stroke: var(--green-800);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.connector-label {
+  font-size: 9px;
+  font-weight: 500;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+
+.route-line {
+  fill: none;
+  stroke: var(--route);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.route-marker {
+  opacity: 0;
+  stroke: #fff;
+  stroke-width: 2.5;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.route-marker.visible {
+  opacity: 1;
+}
+
+.start-marker {
+  fill: var(--green-600);
+}
+
+.end-marker {
+  fill: var(--route);
+}

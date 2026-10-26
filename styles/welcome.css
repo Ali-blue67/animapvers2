@@ -1,0 +1,236 @@
+.welcome {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  width: min(1200px, 100% - 2 * clamp(20px, 5vw, 48px));
+  margin-inline: auto;
+}
+
+.welcome-top {
+  display: flex;
+  align-items: center;
+  padding-block: 22px;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(32px, 6vw, 88px);
+  align-items: center;
+  padding-block: clamp(24px, 6vw, 80px) clamp(48px, 8vw, 112px);
+}
+
+.hero h1 {
+  font-size: clamp(2.375rem, 5.4vw, 4rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+}
+
+.hero h1 .place {
+  color: var(--green-800);
+}
+
+.lead {
+  max-width: 34ch;
+  margin-top: 20px;
+  font-size: clamp(1.0625rem, 1.5vw, 1.25rem);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 20px;
+  margin-top: 32px;
+}
+
+.cta-row .btn {
+  min-height: 54px;
+  padding: 0 26px;
+  font-size: 1.0625rem;
+  border-radius: var(--r-lg);
+}
+
+.hero-meta {
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-figure {
+  position: relative;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--r-lg) + 6px);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.hero-plan {
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-lg);
+  background: var(--green-50);
+}
+
+.hero-caption {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  backdrop-filter: blur(6px);
+}
+
+.hero-caption .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--route);
+}
+
+/* The preview route draws itself, holds, then fades and repeats. */
+.hero-plan .route-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: hero-draw 6.5s var(--ease) 0.8s infinite;
+}
+
+.hero-plan .start-marker,
+.hero-plan .end-marker {
+  opacity: 1;
+}
+
+.hero-plan .end-marker {
+  animation: hero-pop 6.5s var(--ease) 0.8s infinite;
+}
+
+@keyframes hero-draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  52% { stroke-dashoffset: 0; opacity: 1; }
+  88% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes hero-pop {
+  0%, 48% { opacity: 0; }
+  58%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-plan .route-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .hero-plan .end-marker {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- What's inside ---------- */
+.inside {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+  gap: clamp(24px, 5vw, 72px);
+  padding-block: clamp(40px, 6vw, 80px);
+  border-top: 1px solid var(--line);
+}
+
+.inside h2 {
+  font-size: clamp(1.625rem, 3vw, 2.25rem);
+}
+
+.feature-list {
+  list-style: none;
+}
+
+.feature {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 18px;
+  padding-block: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.feature:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.feature h3 {
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+}
+
+.feature p {
+  margin-top: 4px;
+  max-width: 52ch;
+  color: var(--ink-2);
+}
+
+.welcome-foot {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-block: 24px;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* ---------- Entrance ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: reveal 0.7s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .hero,
+  .inside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero-copy {
+    order: 1;
+  }
+  .hero-figure {
+    order: 2;
+  }
+  .lead {
+    max-width: 44ch;
+  }
+}

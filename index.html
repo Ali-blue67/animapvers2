@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#0b5d3b" />
+  <title>HS Navigator | DLSU-D HS Complex</title>
+  <meta name="description" content="Search any room in the DLSU-D HS Complex and follow a route across hallways, stairs and floors, in 2D or 3D." />
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/work-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles/general.css" />
+  <link rel="stylesheet" href="styles/map.css" />
+  <link rel="stylesheet" href="styles/welcome.css" />
+</head>
+<body class="welcome">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="page welcome-top">
+    <a class="brand" href="index.html">
+      <span class="brand-mark"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0"/></svg></span>
+      HS Navigator
+    </a>
+  </header>
+
+  <main id="main">
+    <section class="page hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title" class="reveal" style="--i: 0">Find your way around the <span class="place"><span class="nowrap">DLSU-D</span> HS Complex</span></h1>
+        <p class="lead reveal" style="--i: 1">Search any room, then follow a red line through hallways and stairs, floor by floor, in 2D or 3D.</p>
+        <div class="cta-row reveal" style="--i: 2">
+          <a class="btn btn-primary" href="app.html">Open the map <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></a>
+          <p class="hero-meta" id="hero-meta">Every level, every room</p>
+        </div>
+      </div>
+
+      <figure class="hero-figure reveal" style="--i: 2" role="img" aria-label="Floor plan of the 2nd floor with a red route running from LSH 124 along the hallways to LSH 226">
+        <svg class="hero-plan map-svg" id="hero-plan" viewBox="0 0 765 635" aria-hidden="true" focusable="false"></svg>
+        <figcaption class="hero-caption"><span class="dot"></span>LSH 124 to LSH 226 &middot; 2nd Floor</figcaption>
+      </figure>
+    </section>
+
+    <section class="page inside" aria-labelledby="inside-title">
+      <h2 id="inside-title">What&rsquo;s inside</h2>
+      <ul class="feature-list">
+        <li class="feature">
+          <span class="feature-icon"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></span>
+          <div>
+            <h3>Search by name or code</h3>
+            <p>Type LSH 214, Registrar or just CR. Results narrow as you type.</p>
+          </div>
+        </li>
+        <li class="feature">
+          <span class="feature-icon"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg></span>
+          <div>
+            <h3>Routes that follow the hallways</h3>
+            <p>The red line only runs through real hallways, never through walls or rooms.</p>
+          </div>
+        </li>
+        <li class="feature">
+          <span class="feature-icon"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 5h-5v5h-5v5h-5v5h-5"/></svg></span>
+          <div>
+            <h3>Stairs or elevator, your choice</h3>
+            <p>Set a preference and the route updates right away.</p>
+          </div>
+        </li>
+        <li class="feature">
+          <span class="feature-icon"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"/><path d="M12 22v-10"/><path d="M12 12l8.73 -5.04"/><path d="M3.27 6.96l8.73 5.04"/></svg></span>
+          <div>
+            <h3>A 3D model of every level</h3>
+            <p>Rotate, zoom and pan with a mouse, or with your fingers on a phone.</p>
+          </div>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="welcome-foot">
+    <div class="page">De La Salle University - Dasmari&ntilde;as, Senior High School</div>
+  </footer>
+
+  <script type="module" src="scripts/hero.js"></script>
+</body>
+</html>
