@@ -1,11 +1,11 @@
-/* ---------- 3D tab ---------- */
+/* ======== 3D Overview tab ======== */
 .model-card {
   overflow: hidden;
 }
 
 .model-canvas-container {
   position: relative;
-  height: clamp(360px, 64dvh, 780px);
+  height: clamp(420px, 72dvh, 820px);
 }
 
 .model-canvas-container canvas {
@@ -16,11 +16,77 @@
   box-shadow: inset 0 0 0 3px var(--green-700);
 }
 
+/* Overlays: level name + hint (top left), tools (top right), level picker (bottom centre) */
+.model-overlay {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.model-overlay > * {
+  pointer-events: auto;
+}
+
+.model-top-left {
+  top: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: calc(100% - 120px);
+}
+
+.model-chip {
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: var(--green-800);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 .model-hint {
-  padding: 12px 18px;
-  border-top: 1px solid var(--line);
-  font-size: 0.875rem;
-  color: var(--muted);
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.model-top-right {
+  top: 14px;
+  right: 14px;
+  display: flex;
+  gap: 6px;
+}
+
+.model-tool {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-sm);
+}
+
+.model-tool:hover,
+.model-tool[aria-pressed='true'] {
+  background: var(--green-100);
+  color: var(--green-900);
+  border-color: var(--green-700);
+}
+
+.model-bottom {
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  max-width: calc(100% - 24px);
+  transform: translateX(-50%);
+}
+
+.model-bottom .segmented {
+  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .model-empty {
@@ -54,4 +120,13 @@
   max-width: 36ch;
   color: var(--muted);
   font-size: 0.9375rem;
+}
+
+@media (max-width: 560px) {
+  .model-top-left {
+    max-width: calc(100% - 110px);
+  }
+  .model-hint {
+    display: none;
+  }
 }

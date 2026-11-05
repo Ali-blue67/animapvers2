@@ -12,10 +12,34 @@
 .welcome-top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding-block: 22px;
 }
 
-/* ---------- Hero ---------- */
+/* Admin login (top right) on the welcome page */
+.welcome-top .header-actions {
+  margin-left: auto;
+}
+
+.welcome-top .header-btn {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.welcome-top .header-btn:hover:not(:disabled) {
+  background: var(--green-50);
+  border-color: var(--green-700);
+  color: var(--green-800);
+}
+
+.welcome-top .admin-badge {
+  background: var(--green-100);
+}
+
+
+/* ======== Hero ======== */
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
@@ -105,7 +129,9 @@
   background: var(--route);
 }
 
-/* The preview route draws itself, holds, then fades and repeats. */
+
+
+/* ======== The preview route draws itself, pauses, then fades and repeats. ======== */
 .hero-plan .route-line {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -145,7 +171,8 @@
   }
 }
 
-/* ---------- What's inside ---------- */
+
+/* ======== What's inside portion ======== */
 .inside {
   display: grid;
   grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
@@ -204,7 +231,9 @@
   color: var(--muted);
 }
 
-/* ---------- Entrance ---------- */
+
+
+/* ======== Entrance ======== */
 .reveal {
   opacity: 0;
   transform: translateY(14px);

@@ -328,6 +328,22 @@ export const ICONS = {
  ]
 };
 
+
+// ---- Added for admin, accessibility and the new map markers ----
+const p = (d) => ({ tag: 'path', d });
+Object.assign(ICONS, {
+  'alert-triangle': [p('M12 9v4'), p('M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0'), p('M12 16h.01')],
+  ban: [p('M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0'), p('M5.7 5.7l12.6 12.6')],
+  check: [p('M5 12l5 5l10 -10')],
+  'door-enter': [p('M13 12v.01'), p('M3 21h18'), p('M5 21v-16a2 2 0 0 1 2 -2h6m4 10.5v7.5'), p('M21 7h-7m3 -3l-3 3l3 3')],
+  fountain: [p('M12 3v6'), p('M9 6c0 -2 6 -2 6 0'), p('M6 12c0 -2 2 -3 6 -3s6 1 6 3'), p('M4 16h16l-2 4h-12l-2 -4'), p('M12 12v4')],
+  lock: [p('M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -6'), p('M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0'), p('M8 11v-4a4 4 0 1 1 8 0v4')],
+  logout: [p('M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2'), p('M9 12h12l-3 -3'), p('M18 15l3 -3')],
+  pencil: [p('M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4'), p('M13.5 6.5l4 4')],
+  upload: [p('M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2'), p('M7 9l5 -5l5 5'), p('M12 4l0 12')],
+  user: [p('M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0'), p('M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2')],
+});
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Builds an <svg> element for use inside HTML (decorative by default).

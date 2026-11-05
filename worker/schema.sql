@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS room_overrides (
+  room_id TEXT PRIMARY KEY,
+  name TEXT,
+  unavailable INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS models (
+  level_id TEXT PRIMARY KEY,
+  version INTEGER NOT NULL,
+  size INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS login_attempts (
+  ip TEXT PRIMARY KEY,
+  count INTEGER NOT NULL,
+  first_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts INTEGER NOT NULL,
+  ip TEXT,
+  action TEXT NOT NULL,
+  target TEXT
+);

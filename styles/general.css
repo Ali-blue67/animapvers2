@@ -1,7 +1,6 @@
-/* ==========================================================
-   Design tokens + base. One green, one neutral family, tinted
-   shadows, one radius scale. Light theme only (green and white).
-   ========================================================== */
+
+/* ---------- Only for light theme, no dark theme yet ---------- */
+
 
 @font-face {
   font-family: 'Outfit Variable';
@@ -126,7 +125,10 @@ a {
   flex-shrink: 0;
 }
 
-/* ---------- Focus: always visible for keyboard, quiet for mouse ---------- */
+
+
+
+/* ======== Focus: always visible for keyboard, quiet for mouse ======== */
 :focus {
   outline: none;
 }
@@ -136,7 +138,8 @@ a {
   box-shadow: var(--focus-ring);
 }
 
-/* ---------- Utilities ---------- */
+
+/* ======== Utilities ======== */
 .skip-link {
   position: fixed;
   top: 8px;
@@ -165,7 +168,8 @@ a {
   white-space: nowrap;
 }
 
-/* ---------- Buttons ---------- */
+
+/* ======== Buttons ======== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -243,7 +247,10 @@ a {
   cursor: not-allowed;
 }
 
-/* ---------- Segmented control (floor / level / preference switchers) ---------- */
+
+
+
+/* ======== Segmented control (floor / level / preference switchers) ======== */
 .segmented {
   display: inline-flex;
   gap: 2px;
@@ -315,7 +322,9 @@ a {
   font-size: 0.875rem;
 }
 
-/* ---------- Brand (header of both pages) ---------- */
+
+
+/* ======== Brand (header of both pages) ======== */
 .brand {
   display: inline-flex;
   align-items: center;

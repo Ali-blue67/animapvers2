@@ -1,357 +1,322 @@
 // =====================================================================
-// CAMPUS DATA — rebuilt from the annotated PDF (2D_MAP_UPDATED_WITH_NODES).
+// CAMPUS DATA - rebuilt from "new_2D_MAP_UPDATED.pdf".
 //
-// Each floor is now ONE unified layout (Building 1's row + Building 2's
-// row + one shared perimeter hallway) rather than two separate
-// buildings joined by a bridge - that's what your PDF actually shows.
+// Every floor is described with the coordinates read off the PDF
+// (green = walkable corridor, blue = PWD-accessible corridor, red = stairs,
+// not PWD accessible). A small builder (buildFloor) turns those numbers into
+// the rooms, corridor waypoints and graph edges the rest of the app uses.
 //
-// Confidence notes:
-//  - Room codes for LG, UG, 2nd, 3rd, 4th all come straight off your
-//    PDF and should be accurate.
-//  - Exact stairwell-to-stairwell alignment between floors is my best
-//    reading of the diagrams, not guaranteed pixel-perfect - if a
-//    route takes the "wrong" stairs, that's the easiest thing to flag.
-//  - HS Court / Chapel / Cafeteria / Clinic / Prefect / Animo Lounge /
-//    unnamed rooms are folded into Upper Ground, matching how your
-//    PDF draws them on that same page connected by the same red path.
+// HS Cafeteria is its own building: it is NOT joined to Building 1/2 on the
+// 2nd floor. You reach it from the Upper Ground (past the HS Chapel).
 // =====================================================================
 
-const UNIT = 90;
-const GAP = 8;
-const ROW_HEIGHT = 130;
+// ---------- Room colour categories ----------
+const CAT_BLUE = /css lab|tesda/i;
+const CAT_ORANGE = /food lab|science laboratory \d|computer laboratory/i;
+const CAT_YELLOW =
+  /registrar|principal|coordinator|student life|lmo|student council|viridescent|comelec|lev office|resilience|animo|swc|conference|prefect|clinic/i;
+const NOT_CLASSROOM = ['221', '231', '241']; // small rooms the brief leaves out
+export function categoryFor(name) {
+  if (CAT_BLUE.test(name)) return 'blue';
+  if (CAT_ORANGE.test(name)) return 'orange';
+  if (CAT_YELLOW.test(name)) return 'yellow';
+  const m = /^LSH (\d{3})$/.exec(name);
+  if (m && !NOT_CLASSROOM.includes(m[1])) return 'green';
+  return 'gray';
+}
 
-// Lays out a row of cells (rooms or connectors) left to right.
-// cells: [{ id, name, code, span }] - span 1/2/4 controls width.
-function layoutRow(cells, startX, y) {
-  const positioned = [];
-  let cursor = startX;
-  cells.forEach((cell) => {
-    const span = cell.span || 1;
-    const width = span * UNIT + (span - 1) * GAP;
-    const centerX = cursor + width / 2;
-    positioned.push({ ...cell, x: centerX, y, width, height: ROW_HEIGHT });
-    cursor += width + GAP;
+// ---------- Item constructors (source = PDF pixel coordinates) ----------
+const R = (id, name, code, x1, x2, y1, y2, opts = {}) => ({ t: 'room', id, name, code, x1, x2, y1, y2, ...opts });
+const C = (t, id, x, y, name, extra = {}) => ({ t, id, x, y, name, ...extra });
+const S = (id, x, y) => C('S', id, x, y, 'Stairs');
+const E = (x, y) => C('E', 'elevator', x, y, 'Elevator');
+const M = (id, x, y, where) => C('M', id, x, y, `Male Bathroom (${where})`);
+const F = (id, x, y, where) => C('F', id, x, y, `Female Bathroom (${where})`);
+
+const ICON_OF = { S: 'stairs', E: 'elevator', M: 'man', F: 'woman', RAMP: 'wheelchair', GATE: 'door-enter' };
+const ROOM_LIKE = new Set(['M', 'F', 'GATE']); // circles that are real, searchable destinations
+
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+function project(p, s) {
+  const dx = s.b[0] - s.a[0];
+  const dy = s.b[1] - s.a[1];
+  const l2 = dx * dx + dy * dy;
+  if (!l2) return null;
+  const t = Math.max(0, Math.min(1, ((p[0] - s.a[0]) * dx + (p[1] - s.a[1]) * dy) / l2));
+  const pt = [s.a[0] + t * dx, s.a[1] + t * dy];
+  return { pt, d: dist(p, pt) };
+}
+
+function nearest(p, segs) {
+  let best = null;
+  segs.forEach((s) => {
+    const r = project(p, s);
+    if (r && (!best || r.d < best.d)) best = { ...r, seg: s };
   });
-  return { positioned, endX: cursor - GAP };
+  return best;
 }
 
-// A "room" object as used everywhere else in the app
-function room(id, name, code, span) {
-  return { id, name, code: code || '', span: span || 1, kind: 'room' };
-}
-// A bathroom: rendered as a circle+emoji like a connector, but a real
-// searchable destination room (unlike stairs/elevator below).
-function iconRoom(id, name, span) {
-  return { id, name, code: '', span: span || 1, kind: 'room', icon: true };
-}
-// A "connector" object (stairs / elevator) - same shape, tagged so we
-// know not to treat it as a searchable destination room.
-function connector(id, name, span) {
-  return { id, name, code: '', span: span || 1, kind: 'connector' };
-}
+// ---------- Floor builder ----------
+function buildFloor(spec) {
+  const { id, label, k = 1, dx = 0, dy = 0, hallWidth = 24, corridors, items, decor = [], labels = [], panZoom = false, focus } = spec;
+  const P = (x, y) => [x * k + dx, y * k + dy];
+  const nid = (pt) => `${id}-n${Math.round(pt[0])}_${Math.round(pt[1])}`;
 
-// ---- Builds a floor from a top row and bottom row of cells, joined
-// by a hallway strip above the top row, a hallway strip below the
-// bottom row, and a connector down the left side (matching the red
-// path in the PDF, which runs along the outside and down near the
-// elevator) ----
-function makeTwoRowFloor({ id, label, topCells, bottomCells }) {
-  const topHallwayY = 40;
-  const bottomHallwayY = topHallwayY + ROW_HEIGHT + 260 + ROW_HEIGHT;
-  const topRowY = topHallwayY + 70;
-  const bottomRowY = bottomHallwayY - 70;
+  const segs = [];
+  const verts = [];
+  corridors.forEach((c) => {
+    const pts = c.pts.map(([x, y]) => P(x, y));
+    pts.forEach((p) => verts.push(p));
+    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, splits: [] });
+  });
 
-  const top = layoutRow(topCells, 60, topRowY);
-  const bottom = layoutRow(bottomCells, 60, bottomRowY);
+  // Place every item and find the corridor point it plugs into.
+  const placed = items.map((it) => {
+    if (it.t === 'room') {
+      const x1 = it.x1 * k + dx, x2 = it.x2 * k + dx, y1 = it.y1 * k + dy, y2 = it.y2 * k + dy;
+      const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+      const sides = { top: [cx, y1], bottom: [cx, y2], left: [x1, cy], right: [x2, cy] };
+      const inward = { top: [0, 1], bottom: [0, -1], left: [1, 0], right: [-1, 0] };
+      let side = it.door;
+      let door;
+      if (it.doorAt) {
+        door = P(it.doorAt[0], it.doorAt[1]);
+        side = side || 'top';
+      } else if (side) {
+        door = sides[side];
+      } else {
+        let bestD = Infinity;
+        Object.entries(sides).forEach(([sd, pt]) => {
+          const n = nearest(pt, segs);
+          if (n && n.d < bestD) { bestD = n.d; side = sd; door = pt; }
+        });
+      }
+      const hall = nearest(door, segs);
+      const off = Math.min(12, (side === 'top' || side === 'bottom' ? y2 - y1 : x2 - x1) / 2);
+      const node = [door[0] + inward[side][0] * off, door[1] + inward[side][1] * off];
+      return { it, x: cx, y: cy, width: x2 - x1, height: y2 - y1, door, node, hall };
+    }
+    const c = P(it.x, it.y);
+    return { it, x: c[0], y: c[1], node: c, hall: nearest(c, segs) };
+  });
 
-  const waypoints = [];
+  // Every point that has to exist on a corridor segment.
+  placed.forEach((p) => p.hall && p.hall.seg.splits.push(p.hall.pt));
+  segs.forEach((s) => {
+    s.splits.push(s.a, s.b);
+    verts.forEach((v) => {
+      const r = project(v, s);
+      if (r && r.d < 0.75) s.splits.push(v);
+    });
+  });
+
+  const waypoints = {};
   const waypointEdges = [];
-
-  top.positioned.forEach((cell, i) => {
-    const wpId = `${id}-top-w${i}`;
-    waypoints.push({ id: wpId, x: cell.x, y: topHallwayY });
-    if (i > 0) waypointEdges.push([`${id}-top-w${i - 1}`, wpId]);
+  const seen = new Set();
+  segs.forEach((s) => {
+    const sorted = s.splits.slice().sort((p, q) => dist(s.a, p) - dist(s.a, q));
+    const keys = [];
+    sorted.forEach((pt) => {
+      const key = nid(pt);
+      if (!waypoints[key]) waypoints[key] = { id: key, x: pt[0], y: pt[1] };
+      if (keys[keys.length - 1] !== key) keys.push(key);
+    });
+    for (let i = 0; i < keys.length - 1; i++) {
+      const pair = [keys[i], keys[i + 1]].sort().join('|') + (s.pwd ? 'p' : 'n');
+      if (seen.has(pair)) continue;
+      seen.add(pair);
+      waypointEdges.push([keys[i], keys[i + 1], s.pwd]);
+    }
   });
-  bottom.positioned.forEach((cell, i) => {
-    const wpId = `${id}-bottom-w${i}`;
-    waypoints.push({ id: wpId, x: cell.x, y: bottomHallwayY });
-    if (i > 0) waypointEdges.push([`${id}-bottom-w${i - 1}`, wpId]);
-  });
-
-  // Left-side connector linking the two hallways (this is the descending
-  // segment of red dotted line next to the elevator in the PDF)
-  waypointEdges.push([`${id}-top-w0`, `${id}-bottom-w0`]);
 
   const rooms = [];
   const connectors = [];
-
-  top.positioned.forEach((cell, i) => {
-    const entry = { id: `${id}-${cell.id}`, name: cell.name, code: cell.code, x: cell.x, y: cell.y, width: cell.width, height: cell.height, connectsTo: `${id}-top-w${i}`, icon: !!cell.icon };
-    (cell.kind === 'connector' ? connectors : rooms).push(entry);
+  placed.forEach((p) => {
+    const it = p.it;
+    const connectsTo = p.hall ? nid(p.hall.pt) : null;
+    if (it.t === 'room') {
+      rooms.push({
+        id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: it.code || '', cat: categoryFor(it.name),
+        x: p.x, y: p.y, width: p.width, height: p.height, nodeX: p.node[0], nodeY: p.node[1],
+        doorX: p.door[0], doorY: p.door[1], connectsTo, kind: 'room',
+      });
+      return;
+    }
+    const entry = {
+      id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: '', x: p.x, y: p.y, nodeX: p.x, nodeY: p.y,
+      width: 32, height: 32, connectsTo, iconName: ICON_OF[it.t], hallX: p.hall ? p.hall.pt[0] : p.x,
+      hallY: p.hall ? p.hall.pt[1] : p.y, icon: true, pinned: !!it.pinned,
+    };
+    if (ROOM_LIKE.has(it.t)) rooms.push({ ...entry, kind: 'room', cat: 'gray' });
+    else connectors.push({ ...entry, kind: 'connector' });
   });
-  bottom.positioned.forEach((cell, i) => {
-    const entry = { id: `${id}-${cell.id}`, name: cell.name, code: cell.code, x: cell.x, y: cell.y, width: cell.width, height: cell.height, connectsTo: `${id}-bottom-w${i}`, icon: !!cell.icon };
-    (cell.kind === 'connector' ? connectors : rooms).push(entry);
+
+  const decorOut = decor.map((d) => {
+    const c = P(d.x, d.y);
+    return { type: d.type, x: c[0], y: c[1], name: d.name };
+  });
+  const labelsOut = labels.map((l) => {
+    const c = P(l.x, l.y);
+    return { text: l.text, x: c[0], y: c[1] };
   });
 
-  // Elevator - a single point near the bottom-left, matching the PDF
-  const elevatorId = `${id}-elevator`;
-  connectors.push({
-    id: elevatorId, name: 'Elevator', code: '', x: 0, y: bottomRowY + 40,
-    width: 60, height: 60, connectsTo: `${id}-bottom-w0`,
-  });
-
-  const labels = [
-    { text: 'HS Building 2', x: (60 + top.endX) / 2, y: topHallwayY - 32 },
-    { text: 'HS Building 1', x: (60 + bottom.endX) / 2, y: bottomHallwayY + 44 },
-  ];
-
-  return {
-    id, label, waypoints, waypointEdges, rooms, connectors, labels,
-    bounds: { width: Math.max(top.endX, bottom.endX) + 60, height: bottomHallwayY + 80 },
+  const floor = {
+    id, label, hallWidth, waypoints: Object.values(waypoints), waypointEdges, rooms, connectors,
+    decor: decorOut, labels: labelsOut, panZoom,
   };
+  if (focus) {
+    const inFocus = (e) => focus(e.y / k - dy / k, e.x / k - dx / k);
+    floor.homeFocus = { rooms: rooms.filter(inFocus), connectors: connectors.filter(inFocus) };
+  }
+  return floor;
 }
 
-// ---- 2nd, 3rd, and 4th floor share a similar shape, but each floor's
-// room list is written out explicitly rather than sliced from a
-// generic pattern - the 4th floor has a different room count (Science
-// Labs and Mutien Marie Hall take up different amounts of space than
-// a run of numbered classrooms), so forcing it through the same slicing
-// logic as 2nd/3rd was a bug in an earlier draft of this file. ----
-
-const floor2 = makeTwoRowFloor({
-  id: 'level-2', label: '2nd Floor',
-  bottomCells: [
-    iconRoom('malebath-b1', 'Male Bathroom (2nd floor)'),
-    connector('stairs-b1-1', 'Stairs'),
-    room('lsh121', 'LSH 121'), room('lsh122', 'LSH 122'),
-    room('lsh123', 'LSH 123'), room('lsh124', 'LSH 124'),
-    iconRoom('femalebath-b1', 'Female Bathroom (2nd floor)'),
-    connector('stairs-b1-2', 'Stairs'),
-    room('lsh125', 'LSH 125'), room('lsh126', 'LSH 126'), room('lsh127', 'LSH 127'),
-    room('lsh128', 'LSH 128', '', 2),
-    connector('stairs-b1-3', 'Stairs'),
-    room('lsh129', 'LSH 129'),
+// ===================== LOWER GROUND =====================
+const FY = (y) => y - 190; // pulls the Food Labs group up next to the buildings
+const lowerGround = buildFloor({
+  id: 'lower-ground', label: 'Lower Ground (LG)', hallWidth: 24,
+  corridors: [
+    { pts: [[502, 103], [211, 103], [211, 303], [482, 303]] },
+    { pts: [[340, FY(684)], [680, FY(684)]] },
+    { pts: [[537, FY(568)], [537, FY(684)]], pwd: false }, // stairs up (red)
+    { pts: [[675, FY(568)], [675, FY(661)], [576, FY(661)], [576, FY(684)]] }, // ramp (blue)
   ],
-  topCells: [
-    iconRoom('malebath-b2', 'Male Bathroom (2nd floor)'),
-    connector('stairs-b2-1', 'Stairs'),
-    room('lsh228', 'LSH 228'), room('lsh227', 'LSH 227'),
-    room('lsh226', 'LSH 226'), room('lsh225', 'LSH 225'),
-    connector('stairs-b2-2', 'Stairs'),
-    iconRoom('femalebath-b2', 'Female Bathroom (2nd floor)'),
-    room('lsh224', 'LSH 224'), room('lsh223', 'LSH 223'),
-    room('lsh222', 'LSH 222', '', 2),
-    room('lsh221', 'LSH 221'),
-    connector('stairs-b2-3', 'Stairs'),
-    room('unnamed-4', 'Unnamed Room 4'),
+  items: [
+    S('stairs-1', 252, 126), F('female-restroom', 232, 195, 'Building 2'),
+    S('stairs-2', 247, 277), M('male-restroom', 281, 277, 'Building 1'), E(187, 297),
+    R('staff-room', 'Staff Room / Storage', '', 377, 428, 112, 182),
+    R('lrc-basement', 'Learning Resource Center Basement', '', 439, 565, 112, 182),
+    R('css-lab-1', 'CSS Laboratory 1', '', 302, 387, 243, 291),
+    R('css-lab-2', 'CSS Laboratory 2', '', 395, 480, 243, 291),
+    R('css-lab-3', 'CSS Laboratory 3', '', 487, 556, 243, 340, { door: 'left' }),
+    F('female-restroom-food', 336, FY(681), 'Food Labs'), M('male-restroom-food', 679, FY(681), 'Food Labs'),
+    C('S', 'cafe-stairs', 537, FY(568), 'Stairs'),
+    C('RAMP', 'cafe-ramp', 675, FY(568), 'Ramp'),
+    R('food-lab-2', 'Food Lab 2', '', 340, 503, FY(692), FY(753)),
+    R('food-lab-1', 'Food Lab 1', '', 511, 670, FY(692), FY(753)),
+  ],
+  labels: [
+    { text: 'HS Building 2', x: 309, y: 90 }, { text: 'HS Building 1', x: 346, y: 340 },
+    { text: 'Below HS Cafeteria', x: 520, y: FY(790) },
   ],
 });
 
-const floor3 = makeTwoRowFloor({
-  id: 'level-3', label: '3rd Floor',
-  bottomCells: [
-    iconRoom('malebath-b1', 'Male Bathroom (3rd floor)'),
-    connector('stairs-b1-1', 'Stairs'),
-    room('lsh131', 'LSH 131'), room('lsh132', 'LSH 132'),
-    room('lsh133', 'LSH 133'), room('lsh134', 'LSH 134'),
-    iconRoom('femalebath-b1', 'Female Bathroom (3rd floor)'),
-    connector('stairs-b1-2', 'Stairs'),
-    room('lsh135', 'LSH 135'), room('lsh136', 'LSH 136'), room('lsh137', 'LSH 137'),
-    room('lsh138', 'LSH 138', '', 2),
-    connector('stairs-b1-3', 'Stairs'),
-    room('lsh139', 'LSH 139'),
+// ===================== UPPER GROUND =====================
+const upperGround = buildFloor({
+  id: 'ground', label: 'Upper Ground (UG)', k: 1.6, hallWidth: 30, panZoom: true,
+  corridors: [
+    { pts: [[218, 103], [758, 103], [758, 352], [218, 352], [218, 103]] },
+    { pts: [[510, 352], [510, 672]] },
+    { pts: [[384, 583], [510, 583]] }, // to the HS Chapel
+    { pts: [[311, 646], [510, 646]] }, // above the cafeteria
+    { pts: [[311, 646], [311, 672]] },
+    { pts: [[398, 646], [398, 664]], pwd: false }, // stairs down to the Food Labs
+    { pts: [[448, 646], [448, 656]] }, // ramp down to the Food Labs
+    { pts: [[488, 646], [488, 680]] }, // cafeteria entrance
+    { pts: [[637, 352], [637, 417]], pwd: false }, // red: steps
+    { pts: [[588, 352], [588, 417], [637, 417]] }, // blue: ramp
+    { pts: [[637, 417], [637, 767]] },
+    { pts: [[510, 517], [637, 517]], pwd: false }, // red: steps
+    { pts: [[637, 467], [760, 467]] }, // Gate 2.5
   ],
-  topCells: [
-    iconRoom('malebath-b2', 'Male Bathroom (3rd floor)'),
-    connector('stairs-b2-1', 'Stairs'),
-    room('lsh238', 'LSH 238'), room('lsh237', 'LSH 237'),
-    room('lsh236', 'LSH 236'), room('lsh235', 'LSH 235'),
-    connector('stairs-b2-2', 'Stairs'),
-    iconRoom('femalebath-b2', 'Female Bathroom (3rd floor)'),
-    room('lsh234', 'LSH 234'), room('lsh233', 'LSH 233'),
-    room('lsh232', 'LSH 232', '', 2),
-    room('lsh231', 'LSH 231'),
-    connector('stairs-b2-3', 'Stairs'),
-    room('unnamed-5', 'Unnamed Room 4'),
+  items: [
+    // Building 2 (top)
+    S('stairs-lrc', 262, 119), M('malebath-ug2', 476, 119, 'Building 2'), S('stairs-4', 503, 119), S('stairs-5', 733, 119),
+    R('lrc', 'Learning Resource Center', 'LRC', 287, 458, 112, 205),
+    R('lsh215', 'LSH 215', '', 545, 587, 112, 170), R('lsh214', 'LSH 214', '', 589, 630, 112, 170),
+    R('lsh213', 'LSH 213', '', 632, 673, 112, 170), R('lsh212', 'LSH 212', '', 675, 717, 112, 170),
+    R('hs-court', 'HS Court', '', 553, 813, 18, 87, { door: 'bottom' }),
+    // Building 1 (bottom)
+    S('stairs-1', 257, 337), M('malebath', 281, 337, 'Building 1'), E(203, 352),
+    F('femalebath', 486, 337, 'Building 1'), S('stairs-2', 511, 337), S('stairs-3', 733, 337),
+    R('lsh111', 'Registrar Office', 'LSH 111', 297, 339, 279, 336), R('lsh112', 'TESDA Office', 'LSH 112', 341, 383, 279, 336),
+    R('lsh113', 'Principal Office', 'LSH 113', 385, 427, 279, 336), R('lsh114', 'Academic Coordinator Office', 'LSH 114', 429, 470, 279, 336),
+    R('lsh115', 'Computer Laboratory 1', 'LSH 115', 528, 570, 279, 336), R('lsh116', 'Computer Laboratory 2', 'LSH 116', 572, 614, 279, 336),
+    R('lsh117', 'Students Hive', 'LSH 117', 616, 657, 279, 336), R('lsh118', 'Sports Coordinator Office', 'LSH 118', 659, 701, 279, 336),
+    // Gate 2.5 and the right-hand column
+    C('GATE', 'gate-2-5', 760, 467, 'Gate 2.5 (Entrance)', { pinned: true }),
+    R('hs-clinic', 'HS Clinic', '', 550, 628, 426, 454, { door: 'right' }),
+    R('prefect', 'SDFO Prefect', '', 550, 630, 456, 498, { door: 'right' }),
+    R('bookstore', 'National Bookstore', '', 562, 628, 526, 571), R('resilience', 'Office of Resilience and Sustainability', '', 562, 628, 575, 621),
+    R('animo-lounge', 'Animo Lounge', '', 562, 628, 625, 669), R('swc', 'SWC', '', 562, 628, 673, 718),
+    R('conference-room', 'Conference Room', '', 562, 628, 721, 767),
+    // Chapel and cafeteria (1st floor)
+    R('hs-chapel', 'HS Chapel', '', 277, 382, 515, 606, { doorAt: [382, 583], door: 'right' }),
+    R('hs-cafeteria', 'HS Cafeteria', '', 282, 515, 680, 767, { doorAt: [488, 680], door: 'top' }),
+    C('S', 'cafe-stairs-l', 293, 646, 'Stairs'), F('cafe-femalebath', 293, 672, 'Cafeteria'),
+    C('S', 'cafe-stairs-r', 528, 646, 'Stairs'), M('cafe-malebath', 528, 672, 'Cafeteria'),
+    C('S', 'cafe-stairs-down', 398, 670, 'Stairs'), C('RAMP', 'cafe-ramp-down', 448, 662, 'Ramp'),
   ],
+  decor: [{ type: 'fountain', x: 432, y: 555, name: 'Fountain' }],
+  labels: [{ text: 'HS Building 2', x: 488, y: 88 }, { text: 'HS Building 1', x: 475, y: 388 }, { text: 'Entrance', x: 700, y: 455 }],
+  focus: (y) => y > 90 && y < 380,
 });
 
-const floor4 = makeTwoRowFloor({
-  id: 'level-4', label: '4th Floor',
-  bottomCells: [
-    iconRoom('malebath-b1', 'Male Bathroom (4th floor)'),
-    connector('stairs-b1-1', 'Stairs'),
-    room('scilab1', 'Science Laboratory 1'),
-    room('scilab2', 'Science Laboratory 2'),
-    room('scistock', 'Lab Stockroom', 'LSH 144'),
-    iconRoom('femalebath-b1', 'Female Bathroom (4th floor)'),
-    connector('stairs-b1-2', 'Stairs'),
-    room('lsh145', 'LSH 145'), room('lsh146', 'LSH 146'), room('lsh147', 'LSH 147'),
-    room('lsh148', 'LSH 148', '', 2),
-    connector('stairs-b1-3', 'Stairs'),
-    room('lsh149', 'LSH 149'),
+// ===================== 2nd / 3rd / 4th FLOOR =====================
+const upperCorridors = [{ pts: [[1037, 230], [173, 230], [173, 645], [1037, 645]] }];
+const upperCircles = () => [
+  S('stairs-b2-1', 246, 254), F('femalebath-b2', 600, 254, 'Building 2'), S('stairs-b2-2', 642, 254),
+  S('stairs-b2-3', 979, 254), M('malebath-b2', 197, 436, 'Building 2'),
+  S('stairs-b1-1', 238, 621), M('malebath-b1', 277, 621, 'Building 1'), F('femalebath-b1', 600, 621, 'Building 1'),
+  S('stairs-b1-2', 634, 621), S('stairs-b1-3', 967, 621), E(150, 634),
+];
+const T = [248, 342]; // top-row room height
+const B = [530, 627]; // bottom-row room height
+const lsh = (n, x1, x2, y) => R(`lsh${n}`, `LSH ${n}`, '', x1, x2, y[0], y[1]);
+const upperLabels = [{ text: 'HS Building 2', x: 605, y: 212 }, { text: 'HS Building 1', x: 605, y: 668 }];
+
+const floor2 = buildFloor({
+  id: 'level-2', label: '2nd Floor', hallWidth: 24,
+  corridors: [
+    ...upperCorridors,
+    // HS Cafeteria 2nd floor: its own loop, NOT joined to Building 1/2
+    { pts: [[370, 731], [787, 731], [787, 980], [370, 980], [370, 731]], pwd: false },
   ],
-  topCells: [
-    iconRoom('malebath-b2', 'Male Bathroom (4th floor)'),
-    connector('stairs-b2-1', 'Stairs'),
-    room('scilab4', 'Science Laboratory 4', 'LSH 248'),
-    room('scilab3', 'Science Laboratory 3', 'LSH 247'),
-    room('lsh246', 'LSH 246'),
-    connector('stairs-b2-2', 'Stairs'),
-    iconRoom('femalebath-b2', 'Female Bathroom (4th floor)'),
-    room('mmh', 'Mutien Marie Hall (MMH)', '', 4),
-    connector('stairs-b2-3', 'Stairs'),
-    room('unnamed-6', 'Unnamed Room 4'),
+  items: [
+    ...upperCircles(),
+    R('unnamed-1', 'Unnamed Room 1', '', 291, 363, T[0], T[1]), lsh(228, 365, 432, T), lsh(227, 434, 502, T), lsh(226, 504, 571, T),
+    lsh(225, 670, 740, T), lsh(224, 742, 810, T), lsh(223, 812, 880, T), lsh(222, 882, 950, T), R('lsh221', 'LSH 221', '', 1008, 1053, 244, 298),
+    lsh(121, 298, 367, B), lsh(122, 370, 438, B), lsh(123, 440, 507, B), lsh(124, 509, 577, B),
+    lsh(125, 659, 728, B), lsh(126, 732, 800, B), lsh(127, 802, 870, B), lsh(128, 872, 938, B),
+    R('lsh129', 'Viridescent Office', 'LSH 129', 996, 1042, 537, 629),
+    // HS Cafeteria 2nd floor
+    C('S', 'cafe-stairs-l', 359, 727, 'Stairs'), F('cafe-femalebath', 357, 749, 'Cafeteria 2nd floor'),
+    C('S', 'cafe-stairs-r', 802, 730, 'Stairs'), M('cafe-malebath', 802, 752, 'Cafeteria 2nd floor'),
+    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 382, 775, 742, 968, { door: 'top' }),
+    R('osl-space', 'OSL Space', '', 307, 364, 759, 974, { door: 'right' }),
+    R('osl-lmo', 'Office of Student Life / LMO Office', '', 795, 880, 765, 868, { door: 'left' }),
+    R('student-council', 'HS Student Council Office', '', 795, 880, 870, 973, { door: 'left' }),
   ],
+  labels: [...upperLabels, { text: 'HS Cafeteria (2nd floor)', x: 578, y: 1002 }],
 });
 
-// ---- Lower Ground (LG) - irregular shape, hand-placed ----
-const lowerGround = (() => {
-  const id = 'lower-ground';
-  const waypoints = [
-    { id: `${id}-w0`, x: 150, y: 130 },
-    { id: `${id}-w1`, x: 420, y: 130 },
-    { id: `${id}-w2`, x: 680, y: 130 },
-    { id: `${id}-w3`, x: 150, y: 300 },
-    { id: `${id}-w4`, x: 150, y: 470 },
-    { id: `${id}-w5`, x: 330, y: 470 },
-    { id: `${id}-w6`, x: 490, y: 470 },
-    { id: `${id}-w7`, x: 650, y: 470 },
-  ];
-  const waypointEdges = [
-    [`${id}-w0`, `${id}-w1`], [`${id}-w1`, `${id}-w2`],
-    [`${id}-w0`, `${id}-w3`], [`${id}-w3`, `${id}-w4`],
-    [`${id}-w4`, `${id}-w5`], [`${id}-w5`, `${id}-w6`], [`${id}-w6`, `${id}-w7`],
-  ];
-  const rooms = [
-    { id: `${id}-lrc-basement`, name: 'Learning Resource Center Basement', code: '', x: 680, y: 90, width: 320, height: 140, connectsTo: `${id}-w2` },
-    { id: `${id}-css-lab-1`, name: 'CSS Laboratory 1', code: '', x: 330, y: 560, width: UNIT, height: ROW_HEIGHT, connectsTo: `${id}-w5` },
-    { id: `${id}-css-lab-2`, name: 'CSS Laboratory 2', code: '', x: 490, y: 560, width: UNIT, height: ROW_HEIGHT, connectsTo: `${id}-w6` },
-    { id: `${id}-css-lab-3`, name: 'CSS Laboratory 3', code: '', x: 650, y: 560, width: UNIT, height: ROW_HEIGHT, connectsTo: `${id}-w7` },
-  ];
-  const connectors = [
-    { id: `${id}-stairs-1`, name: 'Stairs', x: 90, y: 90, width: 60, height: 60, connectsTo: `${id}-w0` },
-    { id: `${id}-female-restroom`, name: 'Female Restroom (LG)', code: '', x: 90, y: 300, width: 60, height: 60, connectsTo: `${id}-w3`, isRoom: true, icon: true },
-    { id: `${id}-staff-room`, name: 'Staff Room / Storage', code: '', x: 420, y: 90, width: 100, height: 100, connectsTo: `${id}-w1`, isRoom: true },
-    { id: `${id}-male-restroom`, name: 'Male Restroom (LG)', code: '', x: 90, y: 470, width: 60, height: 60, connectsTo: `${id}-w4`, isRoom: true, icon: true },
-    { id: `${id}-stairs-2`, name: 'Stairs', x: 90, y: 560, width: 60, height: 60, connectsTo: `${id}-w4` },
-    { id: `${id}-elevator`, name: 'Elevator', x: 0, y: 560, width: 60, height: 60, connectsTo: `${id}-w4` },
-  ];
-  // Female/Male Restroom and Staff Room are real destinations, not
-  // just connectors - move them into `rooms` so they're searchable.
-  const realRoomIds = ['female-restroom', 'staff-room', 'male-restroom'];
-  const trueConnectors = connectors.filter((c) => !realRoomIds.some((r) => c.id.endsWith(r)));
-  const extraRooms = connectors.filter((c) => realRoomIds.some((r) => c.id.endsWith(r)));
+const floor3 = buildFloor({
+  id: 'level-3', label: '3rd Floor', hallWidth: 24, corridors: upperCorridors,
+  items: [
+    ...upperCircles(),
+    R('unnamed-2', 'Unnamed Room 2', '', 291, 363, T[0], T[1]), lsh(238, 365, 432, T), lsh(237, 434, 502, T), lsh(236, 504, 571, T),
+    lsh(235, 670, 740, T), lsh(234, 742, 810, T), lsh(233, 812, 880, T), lsh(232, 882, 950, T), R('lsh231', 'LSH 231', '', 1008, 1053, 244, 298),
+    lsh(131, 298, 367, B), lsh(132, 370, 438, B), lsh(133, 440, 507, B), lsh(134, 509, 577, B),
+    lsh(135, 659, 728, B), lsh(136, 732, 800, B), lsh(137, 802, 870, B), lsh(138, 872, 938, B),
+    R('lsh139', 'COMELEC Office', 'LSH 139', 996, 1042, 537, 629),
+  ],
+  labels: upperLabels,
+});
 
-  return {
-    id, label: 'Lower Ground (LG)',
-    waypoints, waypointEdges,
-    rooms: [...rooms, ...extraRooms],
-    connectors: trueConnectors,
-    labels: [
-      { text: 'HS Building 2', x: 500, y: 0 },
-      { text: 'HS Building 1', x: 500, y: 655 },
-    ],
-    bounds: { width: 1050, height: 650 },
-  };
-})();
-
-// ---- Upper Ground (UG) - the big, irregular one. Includes HS Court,
-// Chapel, Cafeteria, Clinic, Prefect, Animo Lounge, and unnamed rooms,
-// since your PDF draws these on the same page connected by the same
-// red path. This is the floor the app zooms/pans instead of auto-fitting. ----
-const upperGround = (() => {
-  const id = 'ground';
-
-  const bottomCells = [
-    iconRoom('malebath', 'Male Bathroom (UG)'),
-    connector('stairs-1', 'Stairs'),
-    room('lsh111', 'Registrar Office', 'LSH 111'),
-    room('lsh112', 'TESDA Office', 'LSH 112'),
-    room('lsh113', 'Associate Principal Office', 'LSH 113'),
-    room('lsh114', 'Academic Administrators Office', 'LSH 114'),
-    iconRoom('femalebath', 'Female Bathroom (UG)'),
-    connector('stairs-2', 'Stairs'),
-    room('lsh115', 'Computer Laboratory 1', 'LSH 115'),
-    room('lsh116', 'Computer Laboratory 2', 'LSH 116'),
-    room('lsh117', 'Academic Coordinator Office', 'LSH 117'),
-    room('lsh118', 'Sports Coordinator Office', 'LSH 118'),
-    connector('stairs-3', 'Stairs'),
-  ];
-
-  const topCells = [
-    connector('stairs-lrc', 'Stairs'),
-    room('lrc', 'Learning Resource Center', 'LRC', 2),
-    iconRoom('malebath-ug2', 'Male Bathroom (UG2)'),
-    iconRoom('femalebath-ug2', 'Female Bathroom (UG2)'),
-    connector('stairs-4', 'Stairs'),
-    room('lsh215', 'LSH 215'),
-    room('lsh214', 'LSH 214'),
-    room('lsh213', 'LSH 213'),
-    room('lsh212', 'LSH 212'),
-    room('lsh211', 'LSH 211'),
-    connector('stairs-5', 'Stairs'),
-  ];
-
-  const base = makeTwoRowFloor({ id, label: 'Upper Ground (UG)', topCells, bottomCells });
-
-  // ---- Extra facilities below the main hallway, matching the red
-  // path that continues down from the Building 1 side to the Chapel,
-  // then across to the Clinic / Prefect / Animo Lounge cluster ----
-  const dropWaypoint = `${id}-bottom-w5`; // near Academic Admin Office / Female Bathroom
-  const facilityHallwayY = 560;
-
-  const extraWaypoints = [
-    { id: `${id}-fac-w0`, x: 260, y: facilityHallwayY },
-    { id: `${id}-fac-w1`, x: 620, y: facilityHallwayY },
-    // Separate vertical branch for the Prefect/Animo Lounge/unnamed
-    // room stack, matching the distinct vertical dotted line in the
-    // PDF rather than sharing the Chapel/Cafeteria/Clinic hallway
-    { id: `${id}-fac-turn`, x: 900, y: facilityHallwayY },
-    { id: `${id}-fac-v0`, x: 900, y: facilityHallwayY + 100 },
-    { id: `${id}-fac-v1`, x: 900, y: facilityHallwayY + 190 },
-    { id: `${id}-fac-v2`, x: 900, y: facilityHallwayY + 280 },
-    { id: `${id}-fac-v3`, x: 900, y: facilityHallwayY + 370 },
-    { id: `${id}-fac-v4`, x: 900, y: facilityHallwayY + 460 },
-  ];
-  const extraEdges = [
-    [dropWaypoint, `${id}-fac-w0`],
-    [`${id}-fac-w0`, `${id}-fac-w1`],
-    [`${id}-fac-w1`, `${id}-fac-turn`],
-    [`${id}-fac-turn`, `${id}-fac-v0`],
-    [`${id}-fac-v0`, `${id}-fac-v1`],
-    [`${id}-fac-v1`, `${id}-fac-v2`],
-    [`${id}-fac-v2`, `${id}-fac-v3`],
-    [`${id}-fac-v3`, `${id}-fac-v4`],
-  ];
-
-  const extraRooms = [
-    // Chapel + Cafeteria + Clinic - grouped together on one path
-    { id: `${id}-hs-chapel`, name: 'HS Chapel', code: '', x: 260, y: facilityHallwayY + 100, width: 260, height: 130, connectsTo: `${id}-fac-w0` },
-    { id: `${id}-hs-cafeteria`, name: 'HS Cafeteria', code: '', x: 260, y: facilityHallwayY + 260, width: 300, height: 130, connectsTo: `${id}-fac-w0` },
-    { id: `${id}-hs-clinic`, name: 'HS Clinic', code: '', x: 620, y: facilityHallwayY + 100, width: 180, height: 110, connectsTo: `${id}-fac-w1` },
-    // Prefect / Animo Lounge / unnamed rooms - separate vertical stack
-    { id: `${id}-prefect`, name: 'Prefect', code: '', x: 1020, y: facilityHallwayY + 100, width: 120, height: 90, connectsTo: `${id}-fac-v0` },
-    { id: `${id}-unnamed-3`, name: 'Unnamed Room 3', code: '', x: 1020, y: facilityHallwayY + 190, width: 120, height: 80, connectsTo: `${id}-fac-v1` },
-    { id: `${id}-unnamed-2`, name: 'Unnamed Room 2', code: '', x: 1020, y: facilityHallwayY + 280, width: 120, height: 80, connectsTo: `${id}-fac-v2` },
-    { id: `${id}-animo-lounge`, name: 'Animo Lounge', code: '', x: 1020, y: facilityHallwayY + 370, width: 120, height: 90, connectsTo: `${id}-fac-v3` },
-    { id: `${id}-unnamed-1`, name: 'Unnamed Room 1', code: '', x: 1020, y: facilityHallwayY + 460, width: 120, height: 80, connectsTo: `${id}-fac-v4` },
-    { id: `${id}-hs-court`, name: 'HS Court', code: '', x: 500, y: -140, width: 700, height: 160, connectsTo: `${id}-top-w1` },
-  ];
-
-  return {
-    ...base,
-    waypoints: [...base.waypoints, ...extraWaypoints],
-    waypointEdges: [...base.waypointEdges, ...extraEdges],
-    rooms: [...base.rooms, ...extraRooms],
-    bounds: { width: 1250, height: 1150 },
-    // Opens zoomed in on the two main buildings; the Court above and the
-    // Chapel/Cafeteria/Clinic below are reached by panning and zooming out.
-    homeFocus: { rooms: base.rooms, connectors: base.connectors },
-    panZoom: true,
-  };
-})();
+const floor4 = buildFloor({
+  id: 'level-4', label: '4th Floor', hallWidth: 24, corridors: upperCorridors,
+  items: [
+    ...upperCircles(),
+    R('scilab4', 'Science Laboratory 4', 'LSH 248', 293, 435, T[0], T[1]), R('scilab3', 'Science Laboratory 3', 'LSH 247', 437, 564, T[0], T[1]),
+    lsh(246, 670, 740, T), R('mmh', 'Mutien Marie Hall (MMH)', '', 748, 949, T[0], T[1]), R('lsh241', 'LSH 241', '', 1008, 1053, 244, 298),
+    R('scilab1', 'Science Laboratory 1', '', 298, 407, B[0], B[1]), R('scilab2', 'Science Laboratory 2', '', 409, 507, B[0], B[1]),
+    R('scistock', 'Science Lab Stock Room', 'LSH 144', 509, 577, B[0], B[1]),
+    lsh(145, 659, 728, B), lsh(146, 732, 800, B), lsh(147, 802, 870, B), lsh(148, 872, 938, B),
+    R('lsh149', 'LEV Office', 'LSH 149', 996, 1042, 537, 629),
+  ],
+  labels: upperLabels,
+});
 
 export const floors = {
   'lower-ground': lowerGround,
@@ -369,10 +334,8 @@ export const floorLevels = [
   { id: 'level-4', label: '4th Floor' },
 ];
 
-// Stairs are matched between adjacent floors by position (1st stairs
-// on one floor links to the 1st stairs on the next, etc). Given how
-// many stairwells exist per floor, treat this as a best-effort
-// approximation rather than a guaranteed exact physical match.
+// ---------- Vertical links between floors ----------
+// Each chain lists the same stairwell on successive floors.
 const STAIR_CHAINS = [
   ['lower-ground-stairs-1', 'ground-stairs-lrc', 'level-2-stairs-b2-1', 'level-3-stairs-b2-1', 'level-4-stairs-b2-1'],
   ['lower-ground-stairs-2', 'ground-stairs-1', 'level-2-stairs-b1-1', 'level-3-stairs-b1-1', 'level-4-stairs-b1-1'],
@@ -380,42 +343,34 @@ const STAIR_CHAINS = [
   ['ground-stairs-3', 'level-2-stairs-b1-3', 'level-3-stairs-b1-3', 'level-4-stairs-b1-3'],
   ['ground-stairs-4', 'level-2-stairs-b2-2', 'level-3-stairs-b2-2', 'level-4-stairs-b2-2'],
   ['ground-stairs-5', 'level-2-stairs-b2-3', 'level-3-stairs-b2-3', 'level-4-stairs-b2-3'],
+  // HS Cafeteria: its own stairs, separate from Building 1/2
+  ['lower-ground-cafe-stairs', 'ground-cafe-stairs-down'],
+  ['ground-cafe-stairs-l', 'level-2-cafe-stairs-l'],
+  ['ground-cafe-stairs-r', 'level-2-cafe-stairs-r'],
 ];
 const ELEVATOR_CHAIN = ['lower-ground-elevator', 'ground-elevator', 'level-2-elevator', 'level-3-elevator', 'level-4-elevator'];
+const RAMP_CHAINS = [['lower-ground-cafe-ramp', 'ground-cafe-ramp-down']];
 
-function euclidean(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
+const euclidean = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 function buildFloorGraph(floor) {
   const nodes = {};
   const edges = {};
   const nodeFloor = {};
 
-  function addNode(id, x, y) {
-    nodes[id] = { x, y };
-    nodeFloor[id] = floor.id;
-  }
-  function addEdge(a, b, weight) {
+  const addNode = (id, x, y) => { nodes[id] = { x, y }; nodeFloor[id] = floor.id; };
+  const addEdge = (a, b, weight, pwd) => {
     if (!nodes[a] || !nodes[b]) return;
-    edges[a] = edges[a] || [];
-    edges[b] = edges[b] || [];
-    edges[a].push({ to: b, weight });
-    edges[b].push({ to: a, weight });
-  }
+    (edges[a] = edges[a] || []).push({ to: b, weight, pwd });
+    (edges[b] = edges[b] || []).push({ to: a, weight, pwd });
+  };
 
   floor.waypoints.forEach((wp) => addNode(wp.id, wp.x, wp.y));
-  floor.waypointEdges.forEach(([a, b]) => addEdge(a, b, euclidean(nodes[a] || { x: 0, y: 0 }, nodes[b] || { x: 0, y: 0 })));
-
-  floor.rooms.forEach((r) => {
-    addNode(r.id, r.x, r.y);
-    if (nodes[r.connectsTo]) addEdge(r.id, r.connectsTo, euclidean(nodes[r.id], nodes[r.connectsTo]));
+  floor.waypointEdges.forEach(([a, b, pwd]) => addEdge(a, b, euclidean(nodes[a], nodes[b]), pwd));
+  [...floor.rooms, ...floor.connectors].forEach((r) => {
+    addNode(r.id, r.nodeX, r.nodeY);
+    if (nodes[r.connectsTo]) addEdge(r.id, r.connectsTo, euclidean(nodes[r.id], nodes[r.connectsTo]), true);
   });
-  (floor.connectors || []).forEach((c) => {
-    addNode(c.id, c.x, c.y);
-    if (nodes[c.connectsTo]) addEdge(c.id, c.connectsTo, euclidean(nodes[c.id], nodes[c.connectsTo]));
-  });
-
   return { nodes, edges, nodeFloor };
 }
 
@@ -423,40 +378,44 @@ const CONNECTOR_WEIGHT = 150;
 
 export function buildCampusGraph() {
   const combined = { nodes: {}, edges: {}, nodeFloor: {} };
-
   Object.values(floors).forEach((floor) => {
     const g = buildFloorGraph(floor);
     Object.assign(combined.nodes, g.nodes);
     Object.assign(combined.nodeFloor, g.nodeFloor);
-    for (const id in g.edges) {
-      combined.edges[id] = (combined.edges[id] || []).concat(g.edges[id]);
-    }
+    for (const id in g.edges) combined.edges[id] = (combined.edges[id] || []).concat(g.edges[id]);
   });
 
-  function chainLink(chain, kind) {
+  function chainLink(chain, kind, pwd) {
     for (let i = 0; i < chain.length - 1; i++) {
       const a = chain[i];
       const b = chain[i + 1];
       if (!combined.nodes[a] || !combined.nodes[b]) continue;
-      combined.edges[a] = combined.edges[a] || [];
-      combined.edges[b] = combined.edges[b] || [];
-      combined.edges[a].push({ to: b, weight: CONNECTOR_WEIGHT, kind });
-      combined.edges[b].push({ to: a, weight: CONNECTOR_WEIGHT, kind });
+      (combined.edges[a] = combined.edges[a] || []).push({ to: b, weight: CONNECTOR_WEIGHT, kind, pwd });
+      (combined.edges[b] = combined.edges[b] || []).push({ to: a, weight: CONNECTOR_WEIGHT, kind, pwd });
     }
   }
-
-  STAIR_CHAINS.forEach((chain) => chainLink(chain, 'stairs'));
-  chainLink(ELEVATOR_CHAIN, 'elevator');
-
+  STAIR_CHAINS.forEach((c) => chainLink(c, 'stairs', false)); // stairs are never PWD accessible
+  chainLink(ELEVATOR_CHAIN, 'elevator', true);
+  RAMP_CHAINS.forEach((c) => chainLink(c, 'ramp', true));
   return combined;
+}
+
+// ---------- Admin overrides (names + unavailable flags from the database) ----------
+// overrides = { "<room id>": { name?: string, unavailable?: boolean } }
+export function applyOverrides(overrides = {}) {
+  Object.values(floors).forEach((floor) => {
+    floor.rooms.forEach((r) => {
+      const o = overrides[r.id] || {};
+      r.name = typeof o.name === 'string' && o.name.trim() ? o.name.trim() : r.defaultName;
+      r.unavailable = !!o.unavailable;
+    });
+  });
 }
 
 export function getAllRooms() {
   const all = [];
   Object.values(floors).forEach((floor) => {
-    floor.rooms.forEach((r) => {
-      all.push({ ...r, floorId: floor.id, floorLabel: floor.label });
-    });
+    floor.rooms.forEach((r) => all.push({ ...r, floorId: floor.id, floorLabel: floor.label }));
   });
   return all;
 }

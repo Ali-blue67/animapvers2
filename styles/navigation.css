@@ -1,4 +1,4 @@
-/* ---------- 2D tab ---------- */
+/* ======== 2D Navigation tab ======== */
 .floor-updown {
   display: flex;
   gap: 6px;
@@ -26,11 +26,36 @@
 
 .directions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 14px 16px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   padding: 16px 18px;
+}
+
+.pref-row,
+.suggestions li.pinned-option {
+  background: var(--green-50);
+  font-weight: 600;
+  color: var(--green-900);
+}
+
+.suggestions li.pinned-option .opt-meta {
+  color: var(--green-800);
+  font-weight: 600;
+}
+
+.suggestions li.is-unavailable {
+  color: var(--muted);
+}
+
+.suggestions li.is-unavailable .opt-meta {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.actions {
+  grid-column: 1 / -1;
 }
 
 .search-field {
@@ -171,16 +196,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-}
-
-.route-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 20px;
-  margin-bottom: 12px;
+  gap: 8px 14px;
 }
 
 .pref-label {
@@ -189,39 +205,86 @@
   color: var(--ink-2);
 }
 
+/* Quiet one-line status, so the instruction card below is what stands out */
 .route-message {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 240px;
-  min-height: 1.5rem;
-  margin: 0 2px;
-  font-size: 0.9375rem;
+  min-height: 1.25rem;
+  margin: 0 4px 10px;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--ink);
+  color: var(--muted);
 }
 
 .route-message[data-state='error'] {
   color: var(--danger);
+  font-weight: 600;
 }
 
+/* ---- The instructions: big, high contrast, always the first thing you read ---- */
 .leg-banner {
   display: none;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px 20px;
   margin-bottom: 12px;
-  padding: 12px 14px 12px 16px;
-  border: 1px solid var(--green-200);
-  border-radius: var(--r-md);
-  background: var(--green-50);
-  font-size: 0.9375rem;
-  color: var(--green-900);
+  padding: 18px 20px;
+  border: 2px solid var(--green-800);
+  border-left-width: 8px;
+  border-radius: var(--r-lg);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+  color: var(--ink);
 }
 
 .leg-banner.visible {
   display: flex;
+}
+
+.leg-banner > div {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.leg-step-count {
+  margin-bottom: 4px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--green-800);
+}
+
+.leg-step-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.leg-arrow {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border-radius: 50%;
+  background: var(--route);
+  color: #fff;
+}
+
+.leg-next {
+  margin-top: 8px;
+  font-size: 1rem;
+  color: var(--ink-2);
+}
+
+.leg-banner .btn {
+  min-height: 52px;
+  font-size: 1rem;
 }
 
 .replay-floors {
@@ -242,7 +305,8 @@
   color: var(--ink-2);
 }
 
-/* ---------- Map ---------- */
+
+/* ======== Map ======== */
 .map-frame {
   position: relative;
   height: clamp(440px, calc(100dvh - 330px), 900px);
@@ -301,14 +365,70 @@
   padding: 0;
 }
 
-@media (max-width: 1000px) {
-  .directions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* ---- Legend ---- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 12px;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
 
-  .actions {
-    grid-column: 1 / -1;
-  }
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 18px;
+  height: 14px;
+  border: 1.75px solid #8b958f;
+  border-radius: 3px;
+  background: #eef0ee;
+}
+.swatch.cat-blue { border-color: #2563eb; background: rgba(37, 99, 235, 0.12); }
+.swatch.cat-orange { border-color: #ea580c; background: rgba(234, 88, 12, 0.14); }
+.swatch.cat-yellow { border-color: #d4a106; background: rgba(250, 204, 21, 0.26); }
+.swatch.cat-green { border-color: #16a34a; background: rgba(34, 197, 94, 0.16); }
+.swatch-pwd { border-color: #4aa3e0; background: #cfe8fb; }
+
+/* ---- PWD notice ---- */
+.notice-dialog {
+  width: min(440px, calc(100% - 32px));
+  margin: auto;
+  padding: 26px;
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.notice-dialog::backdrop {
+  background: rgba(4, 48, 31, 0.5);
+}
+
+.notice-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: #fff4d6;
+  color: #b45309;
+}
+
+.notice-dialog h2 {
+  margin-bottom: 8px;
+  font-size: 1.25rem;
+}
+
+.notice-dialog p {
+  margin-bottom: 18px;
+  color: var(--ink-2);
 }
 
 @media (max-width: 700px) {
@@ -318,6 +438,7 @@
 
   .head-tools {
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .head-tools .segmented {
@@ -326,6 +447,10 @@
 
   .actions .btn {
     flex: 1;
+  }
+
+  .leg-banner .btn {
+    width: 100%;
   }
 
   .map-frame {

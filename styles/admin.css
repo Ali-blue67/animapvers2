@@ -1,0 +1,138 @@
+/* ======== Admin: sign-in dialog, badges and editor cards ======== */
+
+/* Admin-only controls stay hidden for guests */
+.admin-only {
+  display: none !important;
+}
+
+body.is-admin .admin-only {
+  display: inline-flex !important;
+}
+
+body.is-admin section.admin-only {
+  display: block !important;
+}
+
+.login-dialog {
+  width: min(400px, calc(100% - 32px));
+  margin: auto;
+  padding: 26px;
+  border: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.login-dialog::backdrop {
+  background: rgba(4, 48, 31, 0.5);
+}
+
+.login-form {
+  display: grid;
+  gap: 10px;
+}
+
+.login-form h2 {
+  font-size: 1.375rem;
+}
+
+.login-lead {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.login-form label,
+.admin-card label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.login-form input,
+.admin-card input[type='text'] {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.login-form input:focus-visible,
+.admin-card input[type='text']:focus-visible {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px var(--green-100);
+}
+
+.login-actions,
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.login-actions {
+  justify-content: flex-end;
+}
+
+.form-error {
+  min-height: 1.25rem;
+  color: var(--danger);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.admin-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 18px 20px;
+  border-color: var(--green-200);
+  background: var(--green-50);
+}
+
+.admin-card[hidden] {
+  display: none;
+}
+
+.admin-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.0625rem;
+}
+
+.admin-help {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--danger);
+}
+
+.form-note {
+  min-height: 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.form-note[data-state='ok'] {
+  color: var(--green-800);
+}
+
+.form-note[data-state='error'] {
+  color: var(--danger);
+}

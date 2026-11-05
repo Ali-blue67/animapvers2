@@ -1,7 +1,7 @@
 // Welcome-page preview: draws a real floor from the campus data and
 // animates a real route across it, so the hero always matches the app.
 import { buildCampusGraph, getFloorsById, getAllRooms, floorLevels } from './campus-data.js';
-import { renderFloor, computeFloorBounds } from './floor-renderer.js';
+import { renderFloor } from './floor-renderer.js';
 import { findShortestPath } from './pathfinding.js';
 
 const graph = buildCampusGraph();
@@ -33,10 +33,18 @@ if (path) {
     if (room) room.classList.add('highlight');
   });
 
-  // Crop to the left part of the floor, where the route happens.
-  const b = computeFloorBounds(floor);
-  const width = Math.max(b.height * 1.125, start.x + 45 + 50 - b.x); // keep the start room fully in view
-  svg.setAttribute('viewBox', `${b.x} ${b.y} ${width} ${b.height}`);
+  // Crop to the part of the floor where the route happens (keeps the 765:635 preview shape).
+  const xs = path.map((id) => graph.nodes[id].x);
+  const ys = path.map((id) => graph.nodes[id].y);
+  const pad = 150;
+  let w = Math.max(...xs) - Math.min(...xs) + pad * 2;
+  let h = Math.max(...ys) - Math.min(...ys) + pad * 2;
+  const aspect = 765 / 635;
+  if (w / h < aspect) w = h * aspect;
+  else h = w / aspect;
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+  const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+  svg.setAttribute('viewBox', `${cx - w / 2} ${cy - h / 2} ${w} ${h}`);
 }
 
 const meta = document.getElementById('hero-meta');

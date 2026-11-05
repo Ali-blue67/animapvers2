@@ -3,10 +3,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { floorLevels } from './campus-data.js';
 import { createIcon } from './icons.js';
+import { state, modelUrlFor, uploadModel, deleteModel } from './api.js';
 
 const container = document.getElementById('model-canvas-container');
 const statusEl = document.getElementById('model-status');
 const levelListEl = document.getElementById('model-level-switcher');
+const levelNameEl = document.getElementById('model-level-name');
+const resetBtn = document.getElementById('model-reset-btn');
+const rotateBtn = document.getElementById('model-rotate-btn');
 
 const HINT = 'Drag to rotate \u00b7 pinch or scroll to zoom \u00b7 two fingers to pan';
 
@@ -51,6 +55,8 @@ let currentModel = null;
 let isFirstLoad = true;
 let loadToken = 0; // ignores a slow load that finishes after a newer one was requested
 let emptyEl = null;
+let currentLevelId = null;
+let currentUrl = null;
 
 function frameCameraToObject(object) {
   const box = new THREE.Box3().setFromObject(object);
@@ -110,8 +116,8 @@ function showEmpty(level) {
   container.appendChild(emptyEl);
 }
 
-// One .glb per level, named after the level id (e.g. models/ground.glb).
-const modelPathFor = (levelId) => `models/${levelId}.glb`;
+// One .glb per level. An admin-uploaded model wins; otherwise models/<levelId>.glb is used.
+const modelPathFor = (levelId) => modelUrlFor(levelId);
 
 function finishFirstLoad() {
   if (isFirstLoad && window.finishLoading) window.finishLoading();
@@ -123,13 +129,17 @@ function loadLevel(levelId) {
   if (!level) return;
 
   const token = ++loadToken;
+  currentLevelId = levelId;
+  currentUrl = modelPathFor(levelId);
+  levelNameEl.textContent = level.label;
+  syncAdminPanel();
   statusEl.textContent = `Loading ${level.label}\u2026`;
   levelListEl.querySelectorAll('button').forEach((btn) => {
     btn.setAttribute('aria-pressed', String(btn.dataset.levelId === levelId));
   });
 
   loader.load(
-    modelPathFor(levelId),
+    currentUrl,
     (gltf) => {
       if (token !== loadToken) return;
       removeCurrentModel();
@@ -166,7 +176,69 @@ floorLevels.forEach((level) => {
   levelListEl.appendChild(button);
 });
 
-loadLevel(floorLevels[0].id);
+// ---------- Overlay controls ----------
+resetBtn.addEventListener('click', () => { if (currentModel) frameCameraToObject(currentModel); });
+rotateBtn.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  controls.autoRotateSpeed = 1.2;
+  rotateBtn.setAttribute('aria-pressed', String(controls.autoRotate));
+});
+
+// ---------- Admin: replace the model of the level that is showing ----------
+const adminPanel = document.getElementById('model-admin');
+const fileInput = document.getElementById('model-file');
+const uploadBtn = document.getElementById('model-upload-btn');
+const removeBtn = document.getElementById('model-remove-btn');
+const adminMsg = document.getElementById('model-admin-msg');
+const adminLevel = document.getElementById('model-admin-level');
+const MAX_MODEL_BYTES = 40 * 1024 * 1024;
+
+function syncAdminPanel() {
+  if (!adminPanel) return;
+  const level = floorLevels.find((l) => l.id === currentLevelId);
+  adminLevel.textContent = level ? level.label : '';
+  removeBtn.disabled = !state.models[currentLevelId];
+}
+
+function adminSay(text, isError) {
+  adminMsg.textContent = text;
+  adminMsg.dataset.state = isError ? 'error' : 'ok';
+}
+
+if (adminPanel) {
+  uploadBtn.addEventListener('click', async () => {
+    const file = fileInput.files[0];
+    if (!file) return adminSay('Choose a .glb file first.', true);
+    if (!/\.glb$/i.test(file.name)) return adminSay('Only .glb files are accepted.', true);
+    if (file.size > MAX_MODEL_BYTES) return adminSay('That file is over 40 MB.', true);
+    uploadBtn.disabled = true;
+    adminSay('Uploading\u2026', false);
+    try {
+      await uploadModel(currentLevelId, file);
+      fileInput.value = '';
+      adminSay('Model updated.', false);
+    } catch (err) {
+      adminSay(err.message, true);
+    } finally {
+      uploadBtn.disabled = false;
+    }
+  });
+
+  removeBtn.addEventListener('click', async () => {
+    try {
+      await deleteModel(currentLevelId);
+      adminSay('Uploaded model removed. Showing the built-in one.', false);
+    } catch (err) {
+      adminSay(err.message, true);
+    }
+  });
+}
+
+// When the server data changes (new upload, sign in), reload the model if its URL changed.
+window.addEventListener('animap:data', () => {
+  syncAdminPanel();
+  if (currentLevelId && modelPathFor(currentLevelId) !== currentUrl) loadLevel(currentLevelId);
+});
 
 // Keep the canvas matched to its container (window resize, sidebar toggle).
 new ResizeObserver(() => {
@@ -181,3 +253,6 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+// Start on the first level (after everything above is defined).
+loadLevel(floorLevels[0].id);

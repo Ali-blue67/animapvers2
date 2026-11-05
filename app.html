@@ -1,150 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#0b5d3b" />
-  <title>Map | HS Navigator</title>
-  <meta name="description" content="Search any room in the DLSU-D HS Complex and follow a route across floors, in 2D or 3D." />
-  <link rel="icon" href="images/favicon.svg" type="image/svg+xml" />
-  <link rel="preload" href="fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="fonts/work-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="styles/general.css" />
-  <link rel="stylesheet" href="styles/map.css" />
-  <link rel="stylesheet" href="styles/app-shell.css" />
-  <link rel="stylesheet" href="styles/map-viewer.css" />
-  <link rel="stylesheet" href="styles/navigation.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<meta name="theme-color" content="#0b5d3b" />
+<title>Map | HS Navigator</title>
+<meta name="description" content="Search any room in the DLSU-D HS Complex and follow a route across floors, in 2D or 3D." />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="preload" href="fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="fonts/work-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="styles/general.css" />
+<link rel="stylesheet" href="styles/map.css" />
+<link rel="stylesheet" href="styles/app-shell.css" />
+<link rel="stylesheet" href="styles/map-viewer.css" />
+<link rel="stylesheet" href="styles/navigation.css" />
+<link rel="stylesheet" href="styles/admin.css" />
 </head>
 <body class="app">
-  <a class="skip-link" href="#main">Skip to main content</a>
+<a class="skip-link" href="#main">Skip to main content</a>
 
-  <div id="loading-screen" role="status" aria-live="polite">
-    <div class="loading-mark"><svg class="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0"/></svg></div>
-    <p class="loading-title">Loading the map&hellip;</p>
-    <div class="loading-track" aria-hidden="true"><div class="loading-fill" id="loading-fill"></div></div>
-  </div>
-
-  <div class="app-shell">
-    <header class="site-header">
-      <button type="button" class="icon-btn hamburger-btn" id="hamburger-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
-        <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></svg>
-      </button>
-      <a class="brand" href="index.html" aria-label="HS Navigator, back to start">
-        <span class="brand-mark"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0"/></svg></span>
-        HS Navigator
-      </a>
-    </header>
-
-    <div class="app-body">
-      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-
-      <nav class="sidebar" id="sidebar" aria-label="Sections">
-        <button type="button" class="sidebar-tab" data-tab="home-panel" aria-current="page">
-          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"/><path d="M12 22v-10"/><path d="M12 12l8.73 -5.04"/><path d="M3.27 6.96l8.73 5.04"/></svg><span>3D model</span>
-        </button>
-        <button type="button" class="sidebar-tab" data-tab="navigation-panel">
-          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg><span>2D navigation</span>
-        </button>
-      </nav>
-
-      <main class="main-content" id="main" tabindex="-1">
-
-        <!-- 3D MODEL -->
-        <section id="home-panel" class="tab-panel active" aria-labelledby="home-title">
-          <div class="panel-head">
-            <h2 class="panel-title" id="home-title">3D model</h2>
-            <div class="segmented segmented-scroll" id="model-level-switcher" role="group" aria-label="Level"></div>
-          </div>
-          <div class="card model-card">
-            <div class="model-canvas-container" id="model-canvas-container"></div>
-            <p class="model-hint" id="model-status" role="status" aria-live="polite">Loading model&hellip;</p>
-          </div>
-        </section>
-
-        <!-- 2D NAVIGATION -->
-        <section id="navigation-panel" class="tab-panel" aria-labelledby="nav-title">
-          <div class="panel-head">
-            <h2 class="panel-title" id="nav-title">2D navigation</h2>
-            <div class="head-tools">
-              <div class="segmented segmented-scroll" id="floor-switcher" role="group" aria-label="Floor"></div>
-              <div class="floor-updown">
-                <button type="button" class="icon-btn" id="floor-down-btn" disabled aria-label="Floor below"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/></svg></button>
-                <button type="button" class="icon-btn" id="floor-up-btn" disabled aria-label="Floor above"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card directions">
-            <div class="search-field">
-              <label for="from-input">Current location</label>
-              <div class="search-input-wrap">
-                <input type="text" id="from-input" name="from" placeholder="Search a room&hellip;" autocomplete="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="from-suggestions" aria-autocomplete="list" />
-                <button type="button" class="search-btn" id="from-search-btn" aria-label="Use the best match for current location"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></button>
-              </div>
-              <ul class="suggestions" id="from-suggestions" role="listbox" aria-label="Matching rooms for current location"></ul>
-            </div>
-
-            <div class="search-field">
-              <label for="to-input">Going to</label>
-              <div class="search-input-wrap">
-                <input type="text" id="to-input" name="to" placeholder="Search a room&hellip;" autocomplete="off" spellcheck="false" enterkeyhint="go" role="combobox" aria-expanded="false" aria-controls="to-suggestions" aria-autocomplete="list" />
-                <button type="button" class="search-btn" id="to-search-btn" aria-label="Use the best match for destination"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></button>
-              </div>
-              <ul class="suggestions" id="to-suggestions" role="listbox" aria-label="Matching rooms for destination"></ul>
-            </div>
-
-            <div class="actions">
-              <button type="button" class="btn btn-primary" id="find-route-btn">Find route</button>
-              <button type="button" class="btn btn-secondary" id="replay-btn" disabled><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"/></svg>Replay</button>
-              <button type="button" class="btn btn-ghost" id="reset-btn">Reset</button>
-            </div>
-          </div>
-
-          <div class="route-bar">
-            <p class="route-message" id="route-message" role="status" aria-live="polite"></p>
-            <div class="pref-row" id="vertical-pref" role="group" aria-labelledby="pref-label">
-              <span class="pref-label" id="pref-label">Between floors, use</span>
-              <div class="segmented">
-                <button type="button" class="pref-btn" data-pref="none" aria-pressed="true">Either</button>
-                <button type="button" class="pref-btn" data-pref="stairs" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 5h-5v5h-5v5h-5v5h-5"/></svg>Stairs</button>
-                <button type="button" class="pref-btn" data-pref="elevator" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 5a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -14"/><path d="M10 10l2 -2l2 2"/><path d="M10 14l2 2l2 -2"/></svg>Elevator</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="leg-banner" id="leg-banner"></div>
-          <div class="replay-floors" id="replay-floors"></div>
-
-          <div class="map-frame" id="map-frame">
-            <svg class="map-svg" id="floor-plan-svg" role="img" aria-label="Floor plan"></svg>
-            <div class="map-tools" id="map-tools" hidden>
-              <p class="map-hint">Drag to pan, scroll or pinch to zoom</p>
-              <div class="segmented zoom-group" role="group" aria-label="Zoom">
-                <button type="button" id="zoom-out-btn" aria-label="Zoom out"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12l14 0"/></svg></button>
-                <button type="button" id="zoom-reset-btn" aria-label="Reset view"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 21l-6 -6"/><path d="M3.268 12.043a7.017 7.017 0 0 0 6.634 4.957a7.012 7.012 0 0 0 7.043 -6.131a7 7 0 0 0 -5.314 -7.672a7.021 7.021 0 0 0 -8.241 4.403"/><path d="M3 4v4h4"/></svg></button>
-                <button type="button" id="zoom-in-btn" aria-label="Zoom in"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-      </main>
+<!-- Ghost (skeleton) preview of the page while it loads -->
+<div id="loading-screen" role="status" aria-live="polite" aria-label="Loading the map">
+  <div class="skeleton-progress" aria-hidden="true"><div class="loading-fill" id="loading-fill"></div></div>
+  <div class="sk-header" aria-hidden="true"><span class="sk sk-circle"></span><span class="sk sk-line" style="width:120px"></span><span class="sk sk-pill sk-right"></span></div>
+  <div class="sk-body" aria-hidden="true">
+    <div class="sk-sidebar"><span class="sk sk-tab"></span><span class="sk sk-tab"></span></div>
+    <div class="sk-main">
+      <span class="sk sk-line sk-title"></span>
+      <div class="sk-card"><span class="sk sk-block"></span><span class="sk sk-pill sk-levels"></span></div>
     </div>
   </div>
+  <span class="visually-hidden">Loading the map&hellip;</span>
+</div>
 
-  <script src="scripts/loading.js"></script>
-  <script src="scripts/sidebar.js"></script>
+<div class="app-shell">
+  <header class="site-header">
+    <button type="button" class="icon-btn hamburger-btn" id="hamburger-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></svg></button>
+    <a class="brand" href="index.html" aria-label="HS Navigator, back to start">
+      <span class="brand-mark"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0"/></svg></span>
+      HS Navigator
+    </a>
+    <div class="header-actions" id="header-actions"></div>
+  </header>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
-    }
+  <div class="app-body">
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    <nav class="sidebar" id="sidebar" aria-label="Sections">
+      <button type="button" class="sidebar-tab" data-tab="home-panel" aria-current="page"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"/><path d="M12 22v-10"/><path d="M12 12l8.73 -5.04"/><path d="M3.27 6.96l8.73 5.04"/></svg><span>3D model</span></button>
+      <button type="button" class="sidebar-tab" data-tab="navigation-panel"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg><span>2D navigation</span></button>
+    </nav>
+
+    <main class="main-content" id="main" tabindex="-1">
+
+      <!-- 3D MODEL -->
+      <section id="home-panel" class="tab-panel active" aria-labelledby="home-title">
+        <div class="panel-head">
+          <h2 class="panel-title" id="home-title">3D model</h2>
+        </div>
+
+        <div class="card model-card">
+          <div class="model-canvas-container" id="model-canvas-container">
+            <!-- Overlays sit on top of the canvas -->
+            <div class="model-overlay model-top-left">
+              <span class="model-chip" id="model-level-name">&nbsp;</span>
+              <p class="model-hint" id="model-status" role="status" aria-live="polite">Loading model&hellip;</p>
+            </div>
+            <div class="model-overlay model-top-right">
+              <button type="button" class="icon-btn model-tool" id="model-rotate-btn" aria-pressed="false" aria-label="Auto-rotate" title="Auto-rotate"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"/></svg></button>
+              <button type="button" class="icon-btn model-tool" id="model-reset-btn" aria-label="Reset view" title="Reset view"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 21l-6 -6"/><path d="M3.268 12.043a7.017 7.017 0 0 0 6.634 4.957a7.012 7.012 0 0 0 7.043 -6.131a7 7 0 0 0 -5.314 -7.672a7.021 7.021 0 0 0 -8.241 4.403"/><path d="M3 4v4h4"/></svg></button>
+            </div>
+            <div class="model-overlay model-bottom">
+              <div class="segmented segmented-scroll" id="model-level-switcher" role="group" aria-label="Level"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin only: replace the model of the level showing above -->
+        <section class="card admin-card admin-only" id="model-admin" aria-labelledby="model-admin-title">
+          <h3 id="model-admin-title"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg> Change 3D model &middot; <span id="model-admin-level"></span></h3>
+          <p class="admin-help">Export the level from Blender as <strong>.glb</strong> (File &rarr; Export &rarr; glTF 2.0, format glTF Binary). Max 40&nbsp;MB.</p>
+          <div class="admin-row">
+            <input type="file" id="model-file" accept=".glb,model/gltf-binary" />
+            <button type="button" class="btn btn-primary btn-sm" id="model-upload-btn">Upload model</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="model-remove-btn">Remove uploaded</button>
+          </div>
+          <p class="form-note" id="model-admin-msg" role="status" aria-live="polite"></p>
+        </section>
+      </section>
+
+      <!-- 2D NAVIGATION -->
+      <section id="navigation-panel" class="tab-panel" aria-labelledby="nav-title">
+        <div class="panel-head">
+          <h2 class="panel-title" id="nav-title">2D navigation</h2>
+          <div class="head-tools">
+            <button type="button" class="btn btn-secondary btn-sm admin-only" id="edit-mode-btn" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>Edit rooms</button>
+            <div class="segmented segmented-scroll" id="floor-switcher" role="group" aria-label="Floor"></div>
+            <div class="floor-updown">
+              <button type="button" class="icon-btn" id="floor-down-btn" disabled aria-label="Floor below"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/></svg></button>
+              <button type="button" class="icon-btn" id="floor-up-btn" disabled aria-label="Floor above"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card directions">
+          <div class="search-field">
+            <label for="from-input">Current location</label>
+            <div class="search-input-wrap">
+              <input type="text" id="from-input" name="from" placeholder="Search a room&hellip;" autocomplete="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="from-suggestions" aria-autocomplete="list" />
+              <button type="button" class="search-btn" id="from-search-btn" aria-label="Use the best match for current location"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></button>
+            </div>
+            <ul class="suggestions" id="from-suggestions" role="listbox" aria-label="Matching rooms for current location"></ul>
+          </div>
+
+          <div class="search-field">
+            <label for="to-input">Going to</label>
+            <div class="search-input-wrap">
+              <input type="text" id="to-input" name="to" placeholder="Search a room&hellip;" autocomplete="off" spellcheck="false" enterkeyhint="go" role="combobox" aria-expanded="false" aria-controls="to-suggestions" aria-autocomplete="list" />
+              <button type="button" class="search-btn" id="to-search-btn" aria-label="Use the best match for destination"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></button>
+            </div>
+            <ul class="suggestions" id="to-suggestions" role="listbox" aria-label="Matching rooms for destination"></ul>
+          </div>
+
+          <div class="pref-row" id="vertical-pref" role="group" aria-labelledby="pref-label">
+            <span class="pref-label" id="pref-label">Between floors, use</span>
+            <div class="segmented segmented-scroll">
+              <button type="button" class="pref-btn" data-pref="none" aria-pressed="true">Either</button>
+              <button type="button" class="pref-btn" data-pref="stairs" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 5h-5v5h-5v5h-5v5h-5"/></svg>Stairs</button>
+              <button type="button" class="pref-btn" data-pref="elevator" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 5a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -14"/><path d="M10 10l2 -2l2 2"/><path d="M10 14l2 2l2 -2"/></svg>Elevator</button>
+              <button type="button" class="pref-btn" data-pref="pwd" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 16a5 5 0 1 0 10 0a5 5 0 1 0 -10 0"/><path d="M17 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M19 17a3 3 0 0 0 -3 -3h-3.4"/><path d="M3 3h1a2 2 0 0 1 2 2v6"/><path d="M6 8h11"/><path d="M15 8v6"/></svg>PWD</button>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="find-route-btn">Find route</button>
+            <button type="button" class="btn btn-secondary" id="replay-btn" disabled><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"/></svg>Replay</button>
+            <button type="button" class="btn btn-ghost" id="reset-btn">Reset</button>
+          </div>
+        </div>
+
+        <p class="route-message" id="route-message" role="status" aria-live="polite"></p>
+
+        <!-- Big, easy-to-read instructions for the floor being shown -->
+        <div class="leg-banner" id="leg-banner" aria-live="polite"></div>
+        <div class="replay-floors" id="replay-floors"></div>
+
+        <div class="map-frame" id="map-frame">
+          <svg class="map-svg" id="floor-plan-svg" role="img" aria-label="Floor plan"></svg>
+          <div class="map-tools" id="map-tools" hidden>
+            <p class="map-hint">Drag to pan, scroll or pinch to zoom</p>
+            <div class="segmented zoom-group" role="group" aria-label="Zoom">
+              <button type="button" id="zoom-out-btn" aria-label="Zoom out"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12l14 0"/></svg></button>
+              <button type="button" id="zoom-reset-btn" aria-label="Reset view"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 21l-6 -6"/><path d="M3.268 12.043a7.017 7.017 0 0 0 6.634 4.957a7.012 7.012 0 0 0 7.043 -6.131a7 7 0 0 0 -5.314 -7.672a7.021 7.021 0 0 0 -8.241 4.403"/><path d="M3 4v4h4"/></svg></button>
+              <button type="button" id="zoom-in-btn" aria-label="Zoom in"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <ul class="legend" aria-label="Map legend">
+          <li><span class="swatch cat-blue"></span>CSS labs &amp; TESDA</li>
+          <li><span class="swatch cat-orange"></span>Science, food &amp; computer labs</li>
+          <li><span class="swatch cat-yellow"></span>Offices &amp; services</li>
+          <li><span class="swatch cat-green"></span>Classrooms</li>
+          <li><span class="swatch cat-gray"></span>Other rooms</li>
+          <li><span class="swatch swatch-pwd"></span>PWD route (elevator &amp; ramps)</li>
+        </ul>
+
+        <!-- Admin only: edit the room picked on the map -->
+        <section class="card admin-card" id="room-editor" hidden aria-labelledby="editor-title">
+          <h3 id="editor-title">Room</h3>
+          <p class="admin-help">Change how this room is named, or close it off. Changes show for every visitor.</p>
+          <label for="editor-name">Display name</label>
+          <input type="text" id="editor-name" maxlength="80" autocomplete="off" />
+          <label class="check-row"><input type="checkbox" id="editor-unavailable" /> Mark as <strong>unavailable</strong> (red stripes on the map)</label>
+          <div class="admin-row">
+            <button type="button" class="btn btn-primary btn-sm" id="editor-save">Save</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="editor-reset">Reset to original</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="editor-close">Close</button>
+          </div>
+          <p class="form-note" id="editor-message" role="status" aria-live="polite"></p>
+        </section>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Shown when a PWD route has to use stairs -->
+<dialog class="notice-dialog" id="pwd-dialog" aria-labelledby="pwd-dialog-title">
+  <div class="notice-icon"><svg class="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"/><path d="M12 16h.01"/></svg></div>
+  <h2 id="pwd-dialog-title">No ramp or elevator up there</h2>
+  <p id="pwd-dialog-text"></p>
+  <button type="button" class="btn btn-primary" id="pwd-dialog-ok">OK, I understand</button>
+</dialog>
+
+<script src="scripts/loading.js"></script>
+<script src="scripts/sidebar.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
   }
-  </script>
-  <script type="module" src="scripts/model-viewer.js"></script>
-  <script type="module" src="scripts/navigation.js"></script>
+}
+</script>
+<script type="module" src="scripts/header.js"></script>
+<script type="module" src="scripts/model-viewer.js"></script>
+<script type="module" src="scripts/navigation.js"></script>
 </body>
 </html>

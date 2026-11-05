@@ -1,11 +1,12 @@
 import { floorLevels, buildCampusGraph, getAllRooms, getFloorsById } from './campus-data.js';
 import { createIcon } from './icons.js';
-import { renderFloor, computeFloorBounds } from './floor-renderer.js';
+import { renderFloor, computeFloorBounds, setEndArrow } from './floor-renderer.js';
 import { enablePanZoom } from './pan-zoom.js';
 import { findShortestPath, runDijkstra, reconstructPath, splitPathIntoLegs } from './pathfinding.js';
+import { initRoomEditor } from './admin.js';
 
 const graph = buildCampusGraph();
-const allRooms = getAllRooms();
+let allRooms = getAllRooms();
 const floorsById = getFloorsById();
 
 const $ = (id) => document.getElementById(id);
@@ -24,6 +25,7 @@ const messageEl = $('route-message');
 const legBanner = $('leg-banner');
 const replayFloorsEl = $('replay-floors');
 const verticalPrefEl = $('vertical-pref');
+const pwdDialog = $('pwd-dialog');
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -33,12 +35,16 @@ let currentLegs = null;
 let activeLegIndex = 0;
 let activeFloorId = floorLevels[0].id;
 let panZoom = null; // controller for the floor currently showing pan/zoom
-let verticalPreference = 'none'; // 'none' | 'stairs' | 'elevator'
+let verticalPreference = 'none'; // 'none' | 'stairs' | 'elevator' | 'pwd'
 
-// ---------- Stairs / elevator preference ----------
+const floorIndex = (floorId) => floorLevels.findIndex((l) => l.id === floorId);
+
+// ---------- Stairs / elevator / PWD preference ----------
 // The option you didn't pick gets a heavy penalty rather than being
-// banned, so a route still exists even if one of the two is missing.
+// banned, so a route still exists even if only the other one is available
+// (for example the HS Cafeteria 2nd floor, which only has stairs).
 function edgeWeight(edge) {
+  if (verticalPreference === 'pwd' && edge.pwd === false) return edge.weight * 1000;
   if (edge.kind === 'stairs' && verticalPreference === 'elevator') return edge.weight * 8;
   if (edge.kind === 'elevator' && verticalPreference === 'stairs') return edge.weight * 8;
   return edge.weight;
@@ -55,7 +61,7 @@ function findNearestRoom(startId, predicate) {
   let bestDistance = Infinity;
 
   allRooms.forEach((room) => {
-    if (room.id === startId || !predicate(room)) return;
+    if (room.id === startId || room.unavailable || !predicate(room)) return;
     const d = distances[room.id];
     if (d !== undefined && d < bestDistance) {
       bestDistance = d;
@@ -91,6 +97,7 @@ function setActiveFloor(floorId) {
 
   const bounds = renderFloor(svgRoot, floor, graph);
   svgRoot.setAttribute('aria-label', `Floor plan: ${floor.label}`);
+  svgRoot.classList.toggle('pwd-mode', verticalPreference === 'pwd');
 
   // Only Upper Ground is flagged panZoom in campus-data.js; the other
   // floors keep the simple auto-fit view.
@@ -104,9 +111,10 @@ function setActiveFloor(floorId) {
     btn.setAttribute('aria-pressed', String(btn.dataset.floorId === floorId));
   });
 
-  const idx = floorLevels.findIndex((l) => l.id === floorId);
+  const idx = floorIndex(floorId);
   floorUpBtn.disabled = !(idx >= 0 && idx < floorLevels.length - 1);
   floorDownBtn.disabled = !(idx > 0);
+  window.dispatchEvent(new CustomEvent('animap:floor-drawn'));
 }
 
 function clearActiveRoute() {
@@ -114,13 +122,13 @@ function clearActiveRoute() {
   activeLegIndex = 0;
   replayBtn.disabled = true;
   legBanner.classList.remove('visible');
+  legBanner.replaceChildren();
   replayFloorsEl.classList.remove('visible');
   showMessage('', false);
 }
 
 function stepFloor(direction) {
-  const idx = floorLevels.findIndex((l) => l.id === activeFloorId);
-  const next = floorLevels[idx + direction];
+  const next = floorLevels[floorIndex(activeFloorId) + direction];
   if (!next) return;
   setActiveFloor(next.id);
   clearActiveRoute();
@@ -140,6 +148,7 @@ verticalPrefEl.querySelectorAll('.pref-btn').forEach((btn) => {
     verticalPrefEl.querySelectorAll('.pref-btn').forEach((b) => {
       b.setAttribute('aria-pressed', String(b === btn));
     });
+    svgRoot.classList.toggle('pwd-mode', verticalPreference === 'pwd');
     // Re-run the current search so the change applies immediately.
     if (fromRoom && toRoom) handleFindRoute();
   });
@@ -168,14 +177,16 @@ function getNearestOptions(query) {
   return [{ special: true, label: 'Nearest restroom', predicate: isRestroom }];
 }
 
+// Pinned places (Gate 2.5) always come first, so they are the first
+// option guests see when they open the list.
 function getMatches(query) {
   const q = query.trim().toLowerCase();
-  if (!q) return allRooms;
-  return allRooms.filter((room) => `${room.name} ${room.code}`.toLowerCase().includes(q));
+  const list = q ? allRooms.filter((room) => `${room.name} ${room.code}`.toLowerCase().includes(q)) : allRooms.slice();
+  return list.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
 }
 
 const roomName = (room) => (room.code ? `${room.name} (${room.code})` : room.name);
-const roomLabel = (room) => `${roomName(room)} \u00b7 ${room.floorLabel}`;
+const roomLabel = (room) => `${roomName(room)} · ${room.floorLabel}`;
 
 function setupSearchField({ input, list, button, onPick, onClear, allowNearest }) {
   let options = []; // actionable options currently listed
@@ -244,11 +255,13 @@ function setupSearchField({ input, list, button, onPick, onClear, allowNearest }
 
     matches.slice(0, 40).forEach((room) => {
       const li = document.createElement('li');
+      if (room.pinned) li.className = 'pinned-option';
+      if (room.unavailable) li.classList.add('is-unavailable');
       const name = document.createElement('span');
       name.textContent = roomName(room);
       const meta = document.createElement('span');
       meta.className = 'opt-meta';
-      meta.textContent = room.floorLabel;
+      meta.textContent = room.unavailable ? `Unavailable · ${room.floorLabel}` : room.pinned ? `Pinned · ${room.floorLabel}` : room.floorLabel;
       li.append(name, meta);
       addOption(li, room);
     });
@@ -336,6 +349,13 @@ function setHighlightedRooms(fromId, toId) {
   });
 }
 
+// 'arrow-up' / 'arrow-down' when this leg ends at a stairs/elevator/ramp, otherwise null.
+function endArrowFor(index) {
+  if (!currentLegs || index >= currentLegs.length - 1) return null;
+  const goingUp = floorIndex(currentLegs[index + 1].floorId) > floorIndex(currentLegs[index].floorId);
+  return goingUp ? 'arrow-up' : 'arrow-down';
+}
+
 function drawRoute(nodeIds) {
   const start = graph.nodes[nodeIds[0]];
   const end = graph.nodes[nodeIds[nodeIds.length - 1]];
@@ -345,6 +365,10 @@ function drawRoute(nodeIds) {
   $('start-marker').setAttribute('cy', start.y);
   $('end-marker').setAttribute('cx', end.x);
   $('end-marker').setAttribute('cy', end.y);
+
+  // Up/down arrow replaces the red dot where the route leaves this floor.
+  const arrow = endArrowFor(activeLegIndex);
+  setEndArrow(svgRoot, arrow, end.x, end.y);
 
   setHighlightedRooms(nodeIds[0], nodeIds[nodeIds.length - 1]);
   fitRouteInView(nodeIds);
@@ -386,12 +410,37 @@ function playRouteAnimation() {
 
   $('start-marker').classList.add('visible');
   $('end-marker').classList.add('visible');
+
+  // The arrow pops in as the line reaches the stairs / elevator.
+  const arrow = svgRoot.querySelector('#end-arrow.visible');
+  if (arrow) {
+    arrow.classList.remove('visible');
+    arrow.style.transitionDelay = reduceMotion.matches ? '0s' : `${seconds * 0.85}s`;
+    arrow.getBoundingClientRect();
+    arrow.classList.add('visible');
+  }
 }
 
 // ---------- Finding a route ----------
 function showMessage(text, isError) {
   messageEl.textContent = text;
   messageEl.dataset.state = isError ? 'error' : 'ok';
+}
+
+// Steps that use stairs while "PWD" is selected (e.g. HS Cafeteria 2nd floor).
+function stairsUsedInPwdRoute(path) {
+  const floors = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const edge = (graph.edges[path[i]] || []).find((e) => e.to === path[i + 1] && e.kind === 'stairs');
+    if (edge) floors.push(floorsById[graph.nodeFloor[path[i + 1]]].label);
+  }
+  return floors;
+}
+
+function showPwdWarning(floorLabels) {
+  const unique = [...new Set(floorLabels)];
+  $('pwd-dialog-text').textContent = `The floor going above (${unique.join(', ')}) does not have a ramp or an elevator in this area, only stairs. The route is still shown so you know where it leads.`;
+  if (typeof pwdDialog.showModal === 'function') pwdDialog.showModal();
 }
 
 function handleFindRoute() {
@@ -412,6 +461,10 @@ function handleFindRoute() {
     destination = result.room;
     path = result.path;
   } else {
+    if (toRoom.unavailable) {
+      showMessage(`${toRoom.name} is currently unavailable.`, true);
+      return;
+    }
     if (fromRoom.id === toRoom.id) {
       showMessage('You are already there.', false);
       return;
@@ -425,17 +478,24 @@ function handleFindRoute() {
   }
 
   currentLegs = splitPathIntoLegs(path, graph.nodeFloor);
+  currentLegs.destination = destination;
+  currentLegs.origin = fromRoom;
 
   const crossesFloors = currentLegs.length > 1;
   showMessage(
     crossesFloors
-      ? `${fromRoom.name} (${fromRoom.floorLabel}) \u2192 ${destination.name} (${destination.floorLabel})`
-      : `${fromRoom.name} \u2192 ${destination.name}`,
+      ? `${fromRoom.name} (${fromRoom.floorLabel}) → ${destination.name} (${destination.floorLabel})`
+      : `${fromRoom.name} → ${destination.name}`,
     false
   );
 
   goToLeg(0);
   mapFrame.scrollIntoView({ block: 'nearest', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+
+  if (verticalPreference === 'pwd') {
+    const stairFloors = stairsUsedInPwdRoute(path);
+    if (stairFloors.length) showPwdWarning(stairFloors);
+  }
 }
 
 function goToLeg(index) {
@@ -449,29 +509,62 @@ function goToLeg(index) {
 }
 
 function connectorKind(nodeId) {
-  return nodeId.includes('elevator') ? 'elevator' : 'stairs';
+  if (nodeId.includes('elevator')) return 'elevator';
+  if (nodeId.includes('ramp')) return 'ramp';
+  return 'stairs';
 }
 
+// One plain sentence for each floor of the route.
+function stepText(index) {
+  const leg = currentLegs[index];
+  const isFirst = index === 0;
+  const isLast = index === currentLegs.length - 1;
+  const from = isFirst ? currentLegs.origin.name : `the ${connectorKind(leg.nodeIds[0])}`;
+  if (isLast) return isFirst ? `Walk from ${from} to ${currentLegs.destination.name}.` : `From ${from}, walk to ${currentLegs.destination.name}.`;
+  const kind = connectorKind(leg.nodeIds[leg.nodeIds.length - 1]);
+  const nextFloor = floorsById[currentLegs[index + 1].floorId];
+  const dir = floorIndex(nextFloor.id) > floorIndex(leg.floorId) ? 'UP' : 'DOWN';
+  return `${isFirst ? `Walk from ${from} to the` : 'Walk to the'} ${kind} and go ${dir} to the ${nextFloor.label}.`;
+}
+
+// The big instruction card above the map: what to do on THIS floor, and what comes next.
 function updateLegBanner() {
-  const isLastLeg = !currentLegs || activeLegIndex === currentLegs.length - 1;
-  if (!currentLegs || currentLegs.length <= 1 || isLastLeg) {
+  if (!currentLegs) {
     legBanner.classList.remove('visible');
     return;
   }
+  const index = activeLegIndex;
+  const isLast = index === currentLegs.length - 1;
 
-  const nextFloor = floorsById[currentLegs[activeLegIndex + 1].floorId];
-  const lastNode = currentLegs[activeLegIndex].nodeIds.slice(-1)[0];
+  const head = document.createElement('p');
+  head.className = 'leg-step-count';
+  head.textContent = currentLegs.length > 1 ? `Step ${index + 1} of ${currentLegs.length} · ${floorsById[currentLegs[index].floorId].label}` : floorsById[currentLegs[index].floorId].label;
 
-  const text = document.createElement('span');
-  text.textContent = `Take the ${connectorKind(lastNode)} to ${nextFloor.label}.`;
+  const text = document.createElement('p');
+  text.className = 'leg-step-text';
+  const arrow = endArrowFor(index);
+  if (arrow) text.append(createIcon(arrow, { size: 28, className: 'leg-arrow' }));
+  text.append(stepText(index));
 
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'btn btn-primary btn-sm';
-  button.append(`Continue to ${nextFloor.label}`, createIcon('arrow-right', { size: 18 }));
-  button.addEventListener('click', () => goToLeg(activeLegIndex + 1));
+  const body = document.createElement('div');
+  body.append(head, text);
+  if (!isLast) {
+    const next = document.createElement('p');
+    next.className = 'leg-next';
+    next.textContent = `Next: ${stepText(index + 1)}`;
+    body.append(next);
+  }
+  legBanner.replaceChildren(body);
 
-  legBanner.replaceChildren(text, button);
+  if (!isLast) {
+    const nextFloor = floorsById[currentLegs[index + 1].floorId];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-primary';
+    button.append(`Continue to ${nextFloor.label}`, createIcon('arrow-right', { size: 18 }));
+    button.addEventListener('click', () => goToLeg(index + 1));
+    legBanner.append(button);
+  }
   legBanner.classList.add('visible');
 }
 
@@ -518,5 +611,32 @@ replayBtn.addEventListener('click', () => {
   if (currentLegs) playRouteAnimation();
 });
 resetBtn.addEventListener('click', handleReset);
+$('pwd-dialog-ok').addEventListener('click', () => pwdDialog.close());
+
+// ---------- Admin changes (renames / unavailable rooms) ----------
+window.addEventListener('animap:data', () => {
+  allRooms = getAllRooms();
+  const fresh = (room) => (room && !room.special ? allRooms.find((r) => r.id === room.id) || room : room);
+  fromRoom = fresh(fromRoom);
+  toRoom = fresh(toRoom);
+  if (currentLegs) {
+    currentLegs.origin = fresh(currentLegs.origin);
+    currentLegs.destination = fresh(currentLegs.destination);
+    goToLeg(activeLegIndex);
+  } else {
+    setActiveFloor(activeFloorId);
+  }
+});
+
+initRoomEditor({
+  svgRoot,
+  getRoom: (id) => {
+    for (const floor of Object.values(floorsById)) {
+      const room = floor.rooms.find((r) => r.id === id);
+      if (room) return room;
+    }
+    return null;
+  },
+});
 
 setActiveFloor(activeFloorId);
