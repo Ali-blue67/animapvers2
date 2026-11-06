@@ -83,15 +83,16 @@ function sameOrigin(request, url) {
 }
 
 const cleanName = (s) => String(s).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 80);
+const cleanDesc = (s) => String(s).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 40);
 
 // ---------- handlers ----------
 async function getConfig(env) {
   const [rooms, models] = await Promise.all([
-    env.DB.prepare('SELECT room_id, name, unavailable FROM room_overrides').all(),
+    env.DB.prepare('SELECT room_id, name, description, unavailable FROM room_overrides').all(),
     env.DB.prepare('SELECT level_id, version, size FROM models').all(),
   ]);
   const overrides = {};
-  rooms.results.forEach((r) => (overrides[r.room_id] = { name: r.name || undefined, unavailable: !!r.unavailable }));
+  rooms.results.forEach((r) => (overrides[r.room_id] = { name: r.name || undefined, description: r.description === null ? undefined : r.description, unavailable: !!r.unavailable }));
   const modelMap = {};
   models.results.forEach((m) => (modelMap[m.level_id] = { version: m.version, size: m.size }));
   return json({ overrides, models: modelMap }, 200, { 'Cache-Control': 'public, max-age=15' });
@@ -126,14 +127,16 @@ async function putRoom(request, env, roomId) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Bad request' }, 400); }
   const name = body.name === undefined || body.name === null ? null : cleanName(body.name);
+  // description: empty = show the room number instead
+  const description = body.description === undefined || body.description === null ? null : cleanDesc(body.description) || null;
   const unavailable = body.unavailable ? 1 : 0;
 
   const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM room_overrides').first();
   if (count.n >= MAX_OVERRIDES) return json({ error: 'Too many overrides' }, 400);
 
-  await env.DB.prepare('INSERT INTO room_overrides (room_id, name, unavailable, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(room_id) DO UPDATE SET name = excluded.name, unavailable = excluded.unavailable, updated_at = excluded.updated_at')
-    .bind(roomId, name || null, unavailable, Date.now()).run();
-  await audit(env, request, 'room_update', `${roomId} name=${name || '-'} unavailable=${unavailable}`);
+  await env.DB.prepare('INSERT INTO room_overrides (room_id, name, description, unavailable, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room_id) DO UPDATE SET name = excluded.name, description = excluded.description, unavailable = excluded.unavailable, updated_at = excluded.updated_at')
+    .bind(roomId, name || null, description, unavailable, Date.now()).run();
+  await audit(env, request, 'room_update', `${roomId} name=${name || '-'} desc=${description === null ? '-' : description} unavailable=${unavailable}`);
   return json({ ok: true });
 }
 

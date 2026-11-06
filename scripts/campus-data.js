@@ -15,10 +15,12 @@ const CAT_BLUE = /css lab|tesda/i;
 const CAT_ORANGE = /food lab|science laboratory \d|computer laboratory/i;
 const CAT_YELLOW =
   /registrar|principal|coordinator|student life|lmo|student council|viridescent|comelec|lev office|resilience|animo|swc|conference|prefect|clinic/i;
+const CAT_PURPLE = /^LSH 21[2-5]$/; // faculty offices
 const NOT_CLASSROOM = ['221', '231', '241']; // small rooms the brief leaves out
 export function categoryFor(name) {
   if (CAT_BLUE.test(name)) return 'blue';
   if (CAT_ORANGE.test(name)) return 'orange';
+  if (CAT_PURPLE.test(name)) return 'purple';
   if (CAT_YELLOW.test(name)) return 'yellow';
   const m = /^LSH (\d{3})$/.exec(name);
   if (m && !NOT_CLASSROOM.includes(m[1])) return 'green';
@@ -30,8 +32,8 @@ const R = (id, name, code, x1, x2, y1, y2, opts = {}) => ({ t: 'room', id, name,
 const C = (t, id, x, y, name, extra = {}) => ({ t, id, x, y, name, ...extra });
 const S = (id, x, y) => C('S', id, x, y, 'Stairs');
 const E = (x, y) => C('E', 'elevator', x, y, 'Elevator');
-const M = (id, x, y, where) => C('M', id, x, y, `Male Bathroom (${where})`);
-const F = (id, x, y, where) => C('F', id, x, y, `Female Bathroom (${where})`);
+const M = (id, x, y, where, extra = {}) => C('M', id, x, y, `Male Bathroom (${where})`, extra);
+const F = (id, x, y, where, extra = {}) => C('F', id, x, y, `Female Bathroom (${where})`, extra);
 
 const ICON_OF = { S: 'stairs', E: 'elevator', M: 'man', F: 'woman', RAMP: 'wheelchair', GATE: 'door-enter' };
 const ROOM_LIKE = new Set(['M', 'F', 'GATE']); // circles that are real, searchable destinations
@@ -137,7 +139,7 @@ function buildFloor(spec) {
     const connectsTo = p.hall ? nid(p.hall.pt) : null;
     if (it.t === 'room') {
       rooms.push({
-        id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: it.code || '', cat: categoryFor(it.name),
+        id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: it.code || '', defaultCode: it.code || '', cat: categoryFor(it.name),
         x: p.x, y: p.y, width: p.width, height: p.height, nodeX: p.node[0], nodeY: p.node[1],
         doorX: p.door[0], doorY: p.door[1], connectsTo, kind: 'room',
       });
@@ -146,7 +148,7 @@ function buildFloor(spec) {
     const entry = {
       id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: '', x: p.x, y: p.y, nodeX: p.x, nodeY: p.y,
       width: 32, height: 32, connectsTo, iconName: ICON_OF[it.t], hallX: p.hall ? p.hall.pt[0] : p.x,
-      hallY: p.hall ? p.hall.pt[1] : p.y, icon: true, pinned: !!it.pinned,
+      hallY: p.hall ? p.hall.pt[1] : p.y, icon: true, pinned: !!it.pinned, noStub: !!it.noStub,
     };
     if (ROOM_LIKE.has(it.t)) rooms.push({ ...entry, kind: 'room', cat: 'gray' });
     else connectors.push({ ...entry, kind: 'connector' });
@@ -158,7 +160,7 @@ function buildFloor(spec) {
   });
   const labelsOut = labels.map((l) => {
     const c = P(l.x, l.y);
-    return { text: l.text, x: c[0], y: c[1] };
+    return { text: l.text, x: c[0], y: c[1], small: !!l.small };
   });
 
   const floor = {
@@ -173,7 +175,7 @@ function buildFloor(spec) {
 }
 
 // ===================== LOWER GROUND =====================
-const FY = (y) => y - 190; // pulls the Food Labs group up next to the buildings
+const FY = (y) => y - 60; // Food Labs sit well below the CSS labs, like the cafeteria below Building 1 on the UG
 const lowerGround = buildFloor({
   id: 'lower-ground', label: 'Lower Ground (LG)', hallWidth: 24,
   corridors: [
@@ -197,9 +199,11 @@ const lowerGround = buildFloor({
     R('food-lab-1', 'Food Lab 1', '', 511, 670, FY(692), FY(753)),
   ],
   labels: [
-    { text: 'HS Building 2', x: 309, y: 90 }, { text: 'HS Building 1', x: 346, y: 340 },
+    { text: 'HS Building 2', x: 309, y: 78 }, { text: 'HS Building 1', x: 346, y: 340 },
     { text: 'Below HS Cafeteria', x: 520, y: FY(790) },
   ],
+  panZoom: true,
+  focus: (y) => y < 380, // opens on the two buildings; pan down to reach the Food Labs
 });
 
 // ===================== UPPER GROUND =====================
@@ -207,13 +211,12 @@ const upperGround = buildFloor({
   id: 'ground', label: 'Upper Ground (UG)', k: 1.6, hallWidth: 30, panZoom: true,
   corridors: [
     { pts: [[218, 103], [758, 103], [758, 352], [218, 352], [218, 103]] },
-    { pts: [[510, 352], [510, 672]] },
+    { pts: [[510, 352], [510, 668]] },
     { pts: [[384, 583], [510, 583]] }, // to the HS Chapel
-    { pts: [[311, 646], [510, 646]] }, // above the cafeteria
-    { pts: [[311, 646], [311, 672]] },
-    { pts: [[398, 646], [398, 664]], pwd: false }, // stairs down to the Food Labs
-    { pts: [[448, 646], [448, 656]] }, // ramp down to the Food Labs
-    { pts: [[488, 646], [488, 680]] }, // cafeteria entrance
+    { pts: [[311, 668], [510, 668]] }, // hallway hugging the cafeteria roof
+    { pts: [[311, 646], [311, 668]] }, // EXIT
+    { pts: [[488, 646], [488, 668]] }, // ENTRANCE
+    { pts: [[398, 668], [398, 686]], pwd: false }, // stairs down to the Food Labs (red)
     { pts: [[637, 352], [637, 417]], pwd: false }, // red: steps
     { pts: [[588, 352], [588, 417], [637, 417]] }, // blue: ramp
     { pts: [[637, 417], [637, 767]] },
@@ -235,7 +238,7 @@ const upperGround = buildFloor({
     R('lsh115', 'Computer Laboratory 1', 'LSH 115', 528, 570, 279, 336), R('lsh116', 'Computer Laboratory 2', 'LSH 116', 572, 614, 279, 336),
     R('lsh117', 'Students Hive', 'LSH 117', 616, 657, 279, 336), R('lsh118', 'Sports Coordinator Office', 'LSH 118', 659, 701, 279, 336),
     // Gate 2.5 and the right-hand column
-    C('GATE', 'gate-2-5', 760, 467, 'Gate 2.5 (Entrance)', { pinned: true }),
+    C('GATE', 'gate-2-5', 637, 467, 'Gate 2.5 (Entrance)', { pinned: true, noStub: true }), // the EN circle: where the gate path meets the corridor
     R('hs-clinic', 'HS Clinic', '', 550, 628, 426, 454, { door: 'right' }),
     R('prefect', 'SDFO Prefect', '', 550, 630, 456, 498, { door: 'right' }),
     R('bookstore', 'National Bookstore', '', 562, 628, 526, 571), R('resilience', 'Office of Resilience and Sustainability', '', 562, 628, 575, 621),
@@ -244,12 +247,14 @@ const upperGround = buildFloor({
     // Chapel and cafeteria (1st floor)
     R('hs-chapel', 'HS Chapel', '', 277, 382, 515, 606, { doorAt: [382, 583], door: 'right' }),
     R('hs-cafeteria', 'HS Cafeteria', '', 282, 515, 680, 767, { doorAt: [488, 680], door: 'top' }),
-    C('S', 'cafe-stairs-l', 293, 646, 'Stairs'), F('cafe-femalebath', 293, 672, 'Cafeteria'),
-    C('S', 'cafe-stairs-r', 528, 646, 'Stairs'), M('cafe-malebath', 528, 672, 'Cafeteria'),
-    C('S', 'cafe-stairs-down', 398, 670, 'Stairs'), C('RAMP', 'cafe-ramp-down', 448, 662, 'Ramp'),
+    C('S', 'cafe-stairs-l', 297, 695, 'Stairs', { noStub: true }), F('cafe-femalebath', 297, 718, 'Cafeteria', { noStub: true }),
+    C('S', 'cafe-stairs-r', 500, 695, 'Stairs', { noStub: true }), M('cafe-malebath', 500, 718, 'Cafeteria', { noStub: true }),
+    C('S', 'cafe-stairs-down', 398, 695, 'Stairs', { noStub: true }),
+    C('RAMP', 'cafe-ramp-down', 510, 648, 'Ramp', { noStub: true }), // on the straight path at the right of the cafeteria
   ],
   decor: [{ type: 'fountain', x: 432, y: 555, name: 'Fountain' }],
-  labels: [{ text: 'HS Building 2', x: 488, y: 88 }, { text: 'HS Building 1', x: 475, y: 388 }, { text: 'Entrance', x: 700, y: 455 }],
+  labels: [{ text: 'HS Building 2', x: 488, y: 88 }, { text: 'HS Building 1', x: 440, y: 388 }, { text: 'Gate 2.5 (Entrance)', x: 712, y: 452 },
+    { text: 'EXIT', x: 311, y: 634, small: true }, { text: 'ENTRANCE', x: 466, y: 634, small: true }],
   focus: (y) => y > 90 && y < 380,
 });
 
@@ -264,14 +269,15 @@ const upperCircles = () => [
 const T = [248, 342]; // top-row room height
 const B = [530, 627]; // bottom-row room height
 const lsh = (n, x1, x2, y) => R(`lsh${n}`, `LSH ${n}`, '', x1, x2, y[0], y[1]);
-const upperLabels = [{ text: 'HS Building 2', x: 605, y: 212 }, { text: 'HS Building 1', x: 605, y: 668 }];
+const upperLabels = [{ text: 'HS Building 2', x: 605, y: 212 }, { text: 'HS Building 1', x: 605, y: 692 }];
 
+const CF = (y) => y + 190; // HS Cafeteria (2nd floor) sits well below Building 1 and 2
 const floor2 = buildFloor({
   id: 'level-2', label: '2nd Floor', hallWidth: 24,
   corridors: [
     ...upperCorridors,
     // HS Cafeteria 2nd floor: its own loop, NOT joined to Building 1/2
-    { pts: [[370, 731], [787, 731], [787, 980], [370, 980], [370, 731]], pwd: false },
+    { pts: [[370, CF(731)], [787, CF(731)], [787, CF(980)], [370, CF(980)], [370, CF(731)]], pwd: false },
   ],
   items: [
     ...upperCircles(),
@@ -279,16 +285,18 @@ const floor2 = buildFloor({
     lsh(225, 670, 740, T), lsh(224, 742, 810, T), lsh(223, 812, 880, T), lsh(222, 882, 950, T), R('lsh221', 'LSH 221', '', 1008, 1053, 244, 298),
     lsh(121, 298, 367, B), lsh(122, 370, 438, B), lsh(123, 440, 507, B), lsh(124, 509, 577, B),
     lsh(125, 659, 728, B), lsh(126, 732, 800, B), lsh(127, 802, 870, B), lsh(128, 872, 938, B),
-    R('lsh129', 'Viridescent Office', 'LSH 129', 996, 1042, 537, 629),
+    R('lsh129', 'Viridescent Office', 'LSH 129', 984, 1052, 537, 629),
     // HS Cafeteria 2nd floor
-    C('S', 'cafe-stairs-l', 359, 727, 'Stairs'), F('cafe-femalebath', 357, 749, 'Cafeteria 2nd floor'),
-    C('S', 'cafe-stairs-r', 802, 730, 'Stairs'), M('cafe-malebath', 802, 752, 'Cafeteria 2nd floor'),
-    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 382, 775, 742, 968, { door: 'top' }),
-    R('osl-space', 'OSL Space', '', 307, 364, 759, 974, { door: 'right' }),
-    R('osl-lmo', 'Office of Student Life / LMO Office', '', 795, 880, 765, 868, { door: 'left' }),
-    R('student-council', 'HS Student Council Office', '', 795, 880, 870, 973, { door: 'left' }),
+    C('S', 'cafe-stairs-l', 359, CF(727), 'Stairs'), F('cafe-femalebath', 357, CF(749), 'Cafeteria 2nd floor'),
+    C('S', 'cafe-stairs-r', 802, CF(730), 'Stairs'), M('cafe-malebath', 802, CF(752), 'Cafeteria 2nd floor'),
+    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 382, 775, CF(742), CF(968), { door: 'top' }),
+    R('osl-space', 'OSL Space', '', 307, 364, CF(759), CF(974), { door: 'right' }),
+    R('osl-lmo', 'Office of Student Life / LMO Office', '', 795, 880, CF(765), CF(868), { door: 'left' }),
+    R('student-council', 'HS Student Council Office', '', 795, 880, CF(870), CF(973), { door: 'left' }),
   ],
-  labels: [...upperLabels, { text: 'HS Cafeteria (2nd floor)', x: 578, y: 1002 }],
+  labels: [...upperLabels, { text: 'HS Cafeteria (2nd floor)', x: 578, y: CF(1002) }],
+  panZoom: true,
+  focus: (y) => y < 700, // opens on Building 1 and 2; pan down to reach the HS Cafeteria
 });
 
 const floor3 = buildFloor({
@@ -299,7 +307,7 @@ const floor3 = buildFloor({
     lsh(235, 670, 740, T), lsh(234, 742, 810, T), lsh(233, 812, 880, T), lsh(232, 882, 950, T), R('lsh231', 'LSH 231', '', 1008, 1053, 244, 298),
     lsh(131, 298, 367, B), lsh(132, 370, 438, B), lsh(133, 440, 507, B), lsh(134, 509, 577, B),
     lsh(135, 659, 728, B), lsh(136, 732, 800, B), lsh(137, 802, 870, B), lsh(138, 872, 938, B),
-    R('lsh139', 'COMELEC Office', 'LSH 139', 996, 1042, 537, 629),
+    R('lsh139', 'COMELEC Office', 'LSH 139', 984, 1052, 537, 629),
   ],
   labels: upperLabels,
 });
@@ -313,7 +321,7 @@ const floor4 = buildFloor({
     R('scilab1', 'Science Laboratory 1', '', 298, 407, B[0], B[1]), R('scilab2', 'Science Laboratory 2', '', 409, 507, B[0], B[1]),
     R('scistock', 'Science Lab Stock Room', 'LSH 144', 509, 577, B[0], B[1]),
     lsh(145, 659, 728, B), lsh(146, 732, 800, B), lsh(147, 802, 870, B), lsh(148, 872, 938, B),
-    R('lsh149', 'LEV Office', 'LSH 149', 996, 1042, 537, 629),
+    R('lsh149', 'LEV Office', 'LSH 149', 984, 1052, 537, 629),
   ],
   labels: upperLabels,
 });
@@ -401,12 +409,14 @@ export function buildCampusGraph() {
 }
 
 // ---------- Admin overrides (names + unavailable flags from the database) ----------
-// overrides = { "<room id>": { name?: string, unavailable?: boolean } }
+// overrides = { "<room id>": { name?: string, description?: string, unavailable?: boolean } }
 export function applyOverrides(overrides = {}) {
   Object.values(floors).forEach((floor) => {
     floor.rooms.forEach((r) => {
       const o = overrides[r.id] || {};
       r.name = typeof o.name === 'string' && o.name.trim() ? o.name.trim() : r.defaultName;
+      // description empty -> fall back to the room number
+      r.code = typeof o.description === 'string' && o.description.trim() ? o.description.trim() : r.defaultCode;
       r.unavailable = !!o.unavailable;
     });
   });

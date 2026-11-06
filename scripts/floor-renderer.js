@@ -37,20 +37,48 @@ export function computeFloorBounds(floor) {
   return { x: minX - pad, y: minY - pad - 20, width: maxX - minX + pad * 2, height: maxY - minY + pad * 2 + 40 };
 }
 
-// Breaks a room name into lines that fit its box (never splits a word).
+// Breaks a room name into lines that fit its box. Words longer than a line are cut.
 function wrapLabel(text, maxChars) {
   const lines = [];
   let current = '';
-  text.split(' ').forEach((word) => {
+  const push = (word) => {
+    while (word.length > maxChars) {
+      if (current) { lines.push(current); current = ''; }
+      lines.push(word.slice(0, maxChars));
+      word = word.slice(maxChars);
+    }
     if (!current) current = word;
     else if (`${current} ${word}`.length <= maxChars) current += ` ${word}`;
-    else {
-      lines.push(current);
-      current = word;
-    }
-  });
+    else { lines.push(current); current = word; }
+  };
+  String(text).split(/\s+/).filter(Boolean).forEach(push);
   if (current) lines.push(current);
   return lines;
+}
+
+// Picks the biggest font size at which the title (and the small description under it)
+// fit completely INSIDE the box. Never lets text spill outside the room.
+function fitText(name, code, w, h) {
+  const padX = 7;
+  const padY = 6;
+  const longestWord = Math.max(...String(name).split(/\s+/).map((x) => x.length));
+  const measure = (size) => {
+    const charW = size * 0.6; // average glyph width of the bold UI font
+    const maxChars = Math.max(2, Math.floor((w - padX * 2) / charW));
+    const lines = wrapLabel(name, maxChars);
+    const codeSize = Math.max(6, size * 0.82);
+    const codeFits = !code || String(code).length * codeSize * 0.58 <= w - padX * 2;
+    const total = lines.length * size * 1.2 + (code ? codeSize * 1.3 : 0);
+    return { size, codeSize, lines, lineHeight: size * 1.2, total, maxChars, ok: total <= h - padY * 2 && codeFits };
+  };
+  // Pass 1: biggest size where no word has to be cut in half. Pass 2: allow cutting.
+  for (const allowCut of [false, true]) {
+    for (let size = 12.5; size >= 6; size -= 0.5) {
+      const m = measure(size);
+      if (m.ok && (allowCut || longestWord <= m.maxChars)) return m;
+    }
+  }
+  return measure(6);
 }
 
 // Which pictogram a marker gets (data can name one directly via iconName).
@@ -73,7 +101,7 @@ function placeIcon(parent, name, x, y, scale) {
 
 // Round marker for stairs, elevator, ramp, restrooms and the gate.
 function renderIconMarker(root, item) {
-  if (item.hallX !== undefined && Math.hypot(item.x - item.hallX, item.y - item.hallY) > STUB_MIN) {
+  if (!item.noStub && item.hallX !== undefined && Math.hypot(item.x - item.hallX, item.y - item.hallY) > STUB_MIN) {
     root.appendChild(svgEl('line', { x1: item.x, y1: item.y, x2: item.hallX, y2: item.hallY, class: 'room-stub' }));
   }
 
@@ -105,24 +133,24 @@ function renderRoom(root, r) {
   group.appendChild(title);
   group.appendChild(svgEl('rect', { x: r.x - w / 2, y: r.y - h / 2, width: w, height: h, rx: 6, class: `room-rect cat-${r.cat || 'gray'}` }));
 
-  // Wrap the name and park it on the side away from the hallway.
-  const lineHeight = 13;
-  const nameLines = wrapLabel(r.name, Math.max(8, Math.floor((w - 10) / 6)));
+  // Title (bigger) + description (smaller, usually the room number), always inside the box.
+  const fit = fitText(r.name, r.code, w, h);
   const away = Math.sign(r.y - r.hallY0) || 0;
-  const centerY = r.y + away * Math.min(h * 0.12, 14);
-  const totalLines = nameLines.length + (r.code ? 1 : 0);
-  const firstY = centerY - ((totalLines - 1) * lineHeight) / 2;
+  let top = r.y - fit.total / 2 + away * Math.min(h * 0.08, 8);
+  top = Math.max(r.y - h / 2 + 5, Math.min(top, r.y + h / 2 - 5 - fit.total));
 
-  const nameText = svgEl('text', { x: r.x, y: firstY, class: 'room-name' });
-  nameLines.forEach((line, i) => {
-    const span = svgEl('tspan', { x: r.x, dy: i === 0 ? 0 : lineHeight });
+  const nameText = svgEl('text', { x: r.x, y: top + fit.lineHeight / 2, class: 'room-name', style: `font-size:${fit.size}px` });
+  fit.lines.forEach((line, i) => {
+    const span = svgEl('tspan', { x: r.x, dy: i === 0 ? 0 : fit.lineHeight });
     span.textContent = line;
     nameText.appendChild(span);
   });
   group.appendChild(nameText);
 
   if (r.code) {
-    const codeText = svgEl('text', { x: r.x, y: firstY + nameLines.length * lineHeight, class: 'room-code' });
+    const codeText = svgEl('text', {
+      x: r.x, y: top + fit.lines.length * fit.lineHeight + fit.codeSize * 0.7, class: 'room-code', style: `font-size:${fit.codeSize}px`,
+    });
     codeText.textContent = r.code;
     group.appendChild(codeText);
   }
@@ -131,11 +159,17 @@ function renderRoom(root, r) {
     group.appendChild(svgEl('rect', { x: r.x - w / 2, y: r.y - h / 2, width: w, height: h, rx: 6, fill: 'url(#hatch)', class: 'unavail-hatch' }));
     const oy = r.y - away * Math.min(h * 0.28, 30);
     const badge = svgEl('g', { class: 'unavail-badge' });
-    badge.appendChild(svgEl('rect', { x: r.x - 38, y: oy - 11, width: 76, height: 22, rx: 11 }));
-    placeIcon(badge, 'ban', r.x - 26, oy, 0.55);
-    const t = svgEl('text', { x: r.x + 6, y: oy });
-    t.textContent = 'UNAVAILABLE';
-    badge.appendChild(t);
+    if (w >= 96) {
+      badge.appendChild(svgEl('rect', { x: r.x - 38, y: oy - 11, width: 76, height: 22, rx: 11 }));
+      placeIcon(badge, 'ban', r.x - 26, oy, 0.55);
+      const t = svgEl('text', { x: r.x + 6, y: oy });
+      t.textContent = 'UNAVAILABLE';
+      badge.appendChild(t);
+    } else {
+      // Narrow room: just the "no entry" icon so nothing sticks out of the box.
+      badge.appendChild(svgEl('circle', { cx: r.x, cy: oy, r: 11 }));
+      placeIcon(badge, 'ban', r.x, oy, 0.6);
+    }
     group.appendChild(badge);
   }
   root.appendChild(group);
@@ -155,7 +189,7 @@ export function renderFloor(root, floor, graph) {
   root.appendChild(defs);
 
   (floor.labels || []).forEach((lbl) => {
-    const text = svgEl('text', { x: lbl.x, y: lbl.y, class: 'building-label' });
+    const text = svgEl('text', { x: lbl.x, y: lbl.y, class: lbl.small ? 'map-note' : 'building-label' });
     text.textContent = lbl.text;
     root.appendChild(text);
   });

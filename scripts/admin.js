@@ -35,7 +35,11 @@ function buildDialog() {
       dialog.close();
       if (!document.body.classList.contains('app')) location.href = 'app.html';
     } catch (err) {
-      error.textContent = err.message === 'Failed to fetch' ? 'Cannot reach the server.' : err.message;
+      const s = err.status;
+      if (err.message === 'Failed to fetch') error.textContent = 'Cannot reach the server. Open the site from your deployed address (or wrangler dev), not a plain file or Live Server.';
+      else if (s === 404 || s === 405) error.textContent = 'The admin server (Worker) is not running at this address. Deploy it with wrangler, or open the wrangler dev address.';
+      else if (s === 500) error.textContent = 'Server error: the database is probably not set up yet. Run the D1 schema step and the secrets step, then try again.';
+      else error.textContent = err.message;
     } finally {
       submit.disabled = false;
     }
@@ -86,6 +90,7 @@ export function initRoomEditor({ svgRoot, getRoom }) {
   let selectedId = null;
 
   const name = panel.querySelector('#editor-name');
+  const desc = panel.querySelector('#editor-desc');
   const unavailable = panel.querySelector('#editor-unavailable');
   const title = panel.querySelector('#editor-title');
   const msg = panel.querySelector('#editor-message');
@@ -96,6 +101,8 @@ export function initRoomEditor({ svgRoot, getRoom }) {
     selectedId = id;
     title.textContent = room.defaultName;
     name.value = room.name;
+    desc.value = room.code !== room.defaultCode ? room.code : '';
+    desc.placeholder = room.defaultCode || 'Room number';
     unavailable.checked = !!room.unavailable;
     msg.textContent = '';
     panel.hidden = false;
@@ -138,7 +145,7 @@ export function initRoomEditor({ svgRoot, getRoom }) {
   }
 
   panel.querySelector('#editor-save').addEventListener('click', () =>
-    run(() => saveRoom(selectedId, { name: name.value, unavailable: unavailable.checked }), 'Saved.'));
+    run(() => saveRoom(selectedId, { name: name.value, description: desc.value, unavailable: unavailable.checked }), 'Saved.'));
   panel.querySelector('#editor-reset').addEventListener('click', () => run(() => resetRoom(selectedId), 'Reset to the original.'));
   panel.querySelector('#editor-close').addEventListener('click', () => { panel.hidden = true; });
 }

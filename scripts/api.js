@@ -8,7 +8,7 @@ const API = '/api';
 export const state = {
   admin: false,
   online: false,
-  overrides: {}, // { roomId: { name?, unavailable? } }
+  overrides: {}, // { roomId: { name?, description?, unavailable? } }
   models: {}, // { levelId: { version, size } } for admin-uploaded models
 };
 
@@ -26,7 +26,11 @@ async function request(path, { method = 'GET', body, raw } = {}) {
   });
   let data = {};
   try { data = await res.json(); } catch { /* empty body */ }
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -68,8 +72,8 @@ export async function logout() {
   emit();
 }
 
-export async function saveRoom(roomId, { name, unavailable }) {
-  await request(`/rooms/${roomId}`, { method: 'PUT', body: { name, unavailable } });
+export async function saveRoom(roomId, { name, description, unavailable }) {
+  await request(`/rooms/${roomId}`, { method: 'PUT', body: { name, description, unavailable } });
   await loadConfig();
 }
 

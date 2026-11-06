@@ -80,8 +80,8 @@ floorLevels.forEach((level) => {
   button.dataset.floorId = level.id;
   button.setAttribute('aria-pressed', 'false');
   button.addEventListener('click', () => {
-    setActiveFloor(level.id);
     clearActiveRoute();
+    setActiveFloor(level.id);
   });
   floorSwitcherEl.appendChild(button);
 });
@@ -117,11 +117,19 @@ function setActiveFloor(floorId) {
   window.dispatchEvent(new CustomEvent('animap:floor-drawn'));
 }
 
+// Keeps the map clear of the floating instruction card: the map starts below it.
+function syncOverlay() {
+  const show = legBanner.classList.contains('visible');
+  mapFrame.classList.toggle('has-overlay', show);
+  mapFrame.style.setProperty('--overlay-h', show ? `${legBanner.offsetHeight + 20}px` : '0px');
+}
+
 function clearActiveRoute() {
   currentLegs = null;
   activeLegIndex = 0;
   replayBtn.disabled = true;
   legBanner.classList.remove('visible');
+  syncOverlay();
   legBanner.replaceChildren();
   replayFloorsEl.classList.remove('visible');
   showMessage('', false);
@@ -130,8 +138,8 @@ function clearActiveRoute() {
 function stepFloor(direction) {
   const next = floorLevels[floorIndex(activeFloorId) + direction];
   if (!next) return;
-  setActiveFloor(next.id);
   clearActiveRoute();
+  setActiveFloor(next.id);
 }
 
 floorUpBtn.addEventListener('click', () => stepFloor(1));
@@ -501,10 +509,10 @@ function handleFindRoute() {
 function goToLeg(index) {
   activeLegIndex = index;
   const leg = currentLegs[index];
+  updateLegBanner(); // first, so the map below is sized for the card before it is drawn
   setActiveFloor(leg.floorId);
   drawRoute(leg.nodeIds);
   replayBtn.disabled = false;
-  updateLegBanner();
   updateReplayFloors();
 }
 
@@ -514,23 +522,21 @@ function connectorKind(nodeId) {
   return 'stairs';
 }
 
-// One plain sentence for each floor of the route.
+// One short sentence for each floor of the route.
 function stepText(index) {
   const leg = currentLegs[index];
-  const isFirst = index === 0;
-  const isLast = index === currentLegs.length - 1;
-  const from = isFirst ? currentLegs.origin.name : `the ${connectorKind(leg.nodeIds[0])}`;
-  if (isLast) return isFirst ? `Walk from ${from} to ${currentLegs.destination.name}.` : `From ${from}, walk to ${currentLegs.destination.name}.`;
+  if (index === currentLegs.length - 1) return `Walk to ${currentLegs.destination.name}`;
   const kind = connectorKind(leg.nodeIds[leg.nodeIds.length - 1]);
   const nextFloor = floorsById[currentLegs[index + 1].floorId];
   const dir = floorIndex(nextFloor.id) > floorIndex(leg.floorId) ? 'UP' : 'DOWN';
-  return `${isFirst ? `Walk from ${from} to the` : 'Walk to the'} ${kind} and go ${dir} to the ${nextFloor.label}.`;
+  return `Go ${dir} the ${kind} to ${nextFloor.label}`;
 }
 
-// The big instruction card above the map: what to do on THIS floor, and what comes next.
+// The frosted card on top of the map: what to do on THIS floor.
 function updateLegBanner() {
   if (!currentLegs) {
     legBanner.classList.remove('visible');
+    syncOverlay();
     return;
   }
   const index = activeLegIndex;
@@ -543,17 +549,11 @@ function updateLegBanner() {
   const text = document.createElement('p');
   text.className = 'leg-step-text';
   const arrow = endArrowFor(index);
-  if (arrow) text.append(createIcon(arrow, { size: 28, className: 'leg-arrow' }));
+  if (arrow) text.append(createIcon(arrow, { size: 22, className: 'leg-arrow' }));
   text.append(stepText(index));
 
   const body = document.createElement('div');
   body.append(head, text);
-  if (!isLast) {
-    const next = document.createElement('p');
-    next.className = 'leg-next';
-    next.textContent = `Next: ${stepText(index + 1)}`;
-    body.append(next);
-  }
   legBanner.replaceChildren(body);
 
   if (!isLast) {
@@ -561,11 +561,12 @@ function updateLegBanner() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn btn-primary';
-    button.append(`Continue to ${nextFloor.label}`, createIcon('arrow-right', { size: 18 }));
+    button.append(`Continue`, createIcon('arrow-right', { size: 18 }));
     button.addEventListener('click', () => goToLeg(index + 1));
     legBanner.append(button);
   }
   legBanner.classList.add('visible');
+  syncOverlay();
 }
 
 // For a route that crosses floors: one button per floor, so any floor's

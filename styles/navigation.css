@@ -219,21 +219,28 @@
   font-weight: 600;
 }
 
-/* ---- The instructions: big, high contrast, always the first thing you read ---- */
+/* ---- The instructions: a floating frosted-glass card pinned to the top of the map ---- */
 .leg-banner {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  z-index: 6;
   display: none;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px 20px;
-  margin-bottom: 12px;
-  padding: 18px 20px;
-  border: 2px solid var(--green-800);
-  border-left-width: 8px;
+  gap: 12px 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
   border-radius: var(--r-lg);
-  background: #fff;
-  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.58);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow: 0 8px 28px rgba(12, 60, 40, 0.18), inset 0 0 0 1px rgba(12, 90, 60, 0.12);
   color: var(--ink);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .leg-banner { background: rgba(255, 255, 255, 0.94); }
 }
 
 .leg-banner.visible {
@@ -241,15 +248,15 @@
 }
 
 .leg-banner > div {
-  flex: 1 1 320px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .leg-step-count {
-  margin-bottom: 4px;
-  font-size: 0.8125rem;
+  margin-bottom: 2px;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--green-800);
 }
@@ -257,34 +264,36 @@
 .leg-step-text {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   letter-spacing: -0.01em;
-  color: var(--ink);
+  color: #0b1f17;
 }
 
 .leg-arrow {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  padding: 8px;
+  width: 34px;
+  height: 34px;
+  padding: 6px;
   border-radius: 50%;
   background: var(--route);
   color: #fff;
 }
 
-.leg-next {
-  margin-top: 8px;
-  font-size: 1rem;
-  color: var(--ink-2);
+.leg-banner .btn {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding-inline: 14px;
+  font-size: 0.875rem;
 }
 
-.leg-banner .btn {
-  min-height: 52px;
-  font-size: 1rem;
+/* The map is pushed down by the card's height, so the card never covers it. */
+.map-frame.has-overlay #floor-plan-svg {
+  margin-top: var(--overlay-h, 0px);
+  height: calc(100% - var(--overlay-h, 0px));
 }
 
 .replay-floors {
@@ -305,6 +314,26 @@
   color: var(--ink-2);
 }
 
+
+/* ---- Floor selector under the map ---- */
+.floor-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-top: 12px;
+}
+
+.floor-bar-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.floor-bar .segmented {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 /* ======== Map ======== */
 .map-frame {
@@ -393,6 +422,7 @@
 .swatch.cat-orange { border-color: #ea580c; background: rgba(234, 88, 12, 0.14); }
 .swatch.cat-yellow { border-color: #d4a106; background: rgba(250, 204, 21, 0.26); }
 .swatch.cat-green { border-color: #16a34a; background: rgba(34, 197, 94, 0.16); }
+.swatch.cat-purple { border-color: #7c3aed; background: rgba(139, 92, 246, 0.18); }
 .swatch-pwd { border-color: #4aa3e0; background: #cfe8fb; }
 
 /* ---- PWD notice ---- */
@@ -447,6 +477,10 @@
 
   .actions .btn {
     flex: 1;
+  }
+
+  .leg-banner {
+    flex-wrap: wrap;
   }
 
   .leg-banner .btn {

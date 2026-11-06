@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS room_overrides (
   room_id TEXT PRIMARY KEY,
   name TEXT,
+  description TEXT,
   unavailable INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
