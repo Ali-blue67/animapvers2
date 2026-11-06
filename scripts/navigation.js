@@ -132,6 +132,7 @@ function clearActiveRoute() {
   syncOverlay();
   legBanner.replaceChildren();
   replayFloorsEl.classList.remove('visible');
+  floorSwitcherEl.querySelectorAll('.target-floor').forEach((b) => b.classList.remove('target-floor'));
   showMessage('', false);
 }
 
@@ -485,7 +486,7 @@ function handleFindRoute() {
     return;
   }
 
-  currentLegs = splitPathIntoLegs(path, graph.nodeFloor);
+  currentLegs = skipElevatorFloors(splitPathIntoLegs(path, graph.nodeFloor));
   currentLegs.destination = destination;
   currentLegs.origin = fromRoom;
 
@@ -506,14 +507,35 @@ function handleFindRoute() {
   }
 }
 
+// An elevator ride through floors you do not get off at (UG > 2nd > 3rd > 4th) becomes ONE step:
+// the floors in between are dropped, so the route jumps straight to the floor you leave on.
+function skipElevatorFloors(legs) {
+  const isElevator = (id) => id.includes('elevator');
+  const out = [];
+  legs.forEach((leg, i) => {
+    const inBetween = i > 0 && i < legs.length - 1 && leg.nodeIds.length === 1 && isElevator(leg.nodeIds[0]);
+    if (!inBetween) out.push(leg);
+  });
+  return out;
+}
+
 function goToLeg(index) {
   activeLegIndex = index;
   const leg = currentLegs[index];
   updateLegBanner(); // first, so the map below is sized for the card before it is drawn
   setActiveFloor(leg.floorId);
+  markTargetFloor();
   drawRoute(leg.nodeIds);
   replayBtn.disabled = false;
   updateReplayFloors();
+}
+
+// Highlights, in the floor selector, the floor to get off on at the end of this step.
+function markTargetFloor() {
+  const next = currentLegs && currentLegs[activeLegIndex + 1];
+  floorSwitcherEl.querySelectorAll('button').forEach((btn) => {
+    btn.classList.toggle('target-floor', !!next && btn.dataset.floorId === next.floorId);
+  });
 }
 
 function connectorKind(nodeId) {
@@ -529,7 +551,12 @@ function stepText(index) {
   const kind = connectorKind(leg.nodeIds[leg.nodeIds.length - 1]);
   const nextFloor = floorsById[currentLegs[index + 1].floorId];
   const dir = floorIndex(nextFloor.id) > floorIndex(leg.floorId) ? 'UP' : 'DOWN';
-  return `Go ${dir} the ${kind} to ${nextFloor.label}`;
+  const target = document.createElement('span');
+  target.className = 'floor-target';
+  target.textContent = nextFloor.label;
+  const frag = document.createDocumentFragment();
+  frag.append(`Take the ${kind} ${dir} to `, target);
+  return frag;
 }
 
 // The frosted card on top of the map: what to do on THIS floor.

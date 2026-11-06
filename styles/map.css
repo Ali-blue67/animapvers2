@@ -24,8 +24,8 @@
 .hallway-line {
   fill: none;
   stroke: #d0e9db;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke-linecap: butt;
+  shape-rendering: geometricPrecision;
 }
 
 .pwd-mode .hallway-line.pwd {

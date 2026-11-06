@@ -196,12 +196,28 @@ export function renderFloor(root, floor, graph) {
 
   // Corridors. Blue = wheelchair accessible, red-ish = steps (shown in PWD mode).
   const hallWidth = floor.hallWidth || 24;
+  // Each corridor is a flat-ended bar. Where two bars meet and have the same colour the bar is
+  // lengthened by half its width so corners and T-junctions fill in square (no round blobs);
+  // where the colour changes (blue ramp meets a red step) it stops exactly at the junction.
+  const classesAt = {};
+  floor.waypointEdges.forEach(([a, b, pwd]) => {
+    [a, b].forEach((n) => { (classesAt[n] = classesAt[n] || new Set()).add(!!pwd); });
+  });
+  const half = hallWidth / 2;
   floor.waypointEdges.forEach(([a, b, pwd]) => {
     const pa = graph.nodes[a];
     const pb = graph.nodes[b];
     if (!pa || !pb) return;
+    const len = Math.hypot(pb.x - pa.x, pb.y - pa.y) || 1;
+    const ux = (pb.x - pa.x) / len;
+    const uy = (pb.y - pa.y) / len;
+    const extA = classesAt[a].size === 1 ? half : 0;
+    const extB = classesAt[b].size === 1 ? half : 0;
     root.appendChild(
-      svgEl('line', { x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y, class: `hallway-line ${pwd ? 'pwd' : 'no-pwd'}`, 'stroke-width': hallWidth })
+      svgEl('line', {
+        x1: pa.x - ux * extA, y1: pa.y - uy * extA, x2: pb.x + ux * extB, y2: pb.y + uy * extB,
+        class: `hallway-line ${pwd ? 'pwd' : 'no-pwd'}`, 'stroke-width': hallWidth,
+      })
     );
   });
 

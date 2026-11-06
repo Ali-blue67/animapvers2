@@ -499,3 +499,28 @@
     justify-content: flex-end;
   }
 }
+
+/* The floor to get off on (after an elevator or stairs ride) */
+.floor-target {
+  display: inline-block;
+  padding: 1px 10px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: #fde68a;
+  color: #5b3b00;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px #f59e0b;
+}
+
+.segmented button.target-floor {
+  background: #fde68a;
+  color: #5b3b00;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 2px #f59e0b;
+}
+
+.segmented button.target-floor[aria-pressed='true'] {
+  background: var(--green-700, #15803d);
+  color: #fff;
+  box-shadow: 0 0 0 2px #f59e0b;
+}

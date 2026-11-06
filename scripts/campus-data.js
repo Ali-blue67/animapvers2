@@ -203,7 +203,6 @@ const lowerGround = buildFloor({
     { text: 'Below HS Cafeteria', x: 520, y: FY(790) },
   ],
   panZoom: true,
-  focus: (y) => y < 380, // opens on the two buildings; pan down to reach the Food Labs
 });
 
 // ===================== UPPER GROUND =====================
@@ -214,8 +213,8 @@ const upperGround = buildFloor({
     { pts: [[510, 352], [510, 668]] },
     { pts: [[384, 583], [510, 583]] }, // to the HS Chapel
     { pts: [[311, 668], [510, 668]] }, // hallway hugging the cafeteria roof
-    { pts: [[311, 646], [311, 668]] }, // EXIT
-    { pts: [[488, 646], [488, 668]] }, // ENTRANCE
+    { pts: [[311, 668], [311, 678]] }, // short stub toward the roof (left end)
+    { pts: [[488, 668], [488, 678]] }, // short stub toward the roof (right end)
     { pts: [[398, 668], [398, 686]], pwd: false }, // stairs down to the Food Labs (red)
     { pts: [[637, 352], [637, 417]], pwd: false }, // red: steps
     { pts: [[588, 352], [588, 417], [637, 417]] }, // blue: ramp
@@ -253,8 +252,7 @@ const upperGround = buildFloor({
     C('RAMP', 'cafe-ramp-down', 510, 648, 'Ramp', { noStub: true }), // on the straight path at the right of the cafeteria
   ],
   decor: [{ type: 'fountain', x: 432, y: 555, name: 'Fountain' }],
-  labels: [{ text: 'HS Building 2', x: 488, y: 88 }, { text: 'HS Building 1', x: 440, y: 388 }, { text: 'Gate 2.5 (Entrance)', x: 712, y: 452 },
-    { text: 'EXIT', x: 311, y: 634, small: true }, { text: 'ENTRANCE', x: 466, y: 634, small: true }],
+  labels: [{ text: 'HS Building 2', x: 488, y: 88 }, { text: 'HS Building 1', x: 440, y: 388 }, { text: 'Gate 2.5 (Entrance)', x: 712, y: 452 }],
   focus: (y) => y > 90 && y < 380,
 });
 
@@ -277,7 +275,11 @@ const floor2 = buildFloor({
   corridors: [
     ...upperCorridors,
     // HS Cafeteria 2nd floor: its own loop, NOT joined to Building 1/2
-    { pts: [[370, CF(731)], [787, CF(731)], [787, CF(980)], [370, CF(980)], [370, CF(731)]], pwd: false },
+    // one hallway along the roof of the cafeteria with two short stubs, like the UG
+    { pts: [[300, CF(731)], [915, CF(731)]], pwd: false },
+    { pts: [[420, CF(709)], [420, CF(731)]], pwd: false },
+    { pts: [[765, CF(709)], [765, CF(731)]], pwd: false },
+    { pts: [[915, CF(731)], [915, CF(1000)]], pwd: false }, // reaches the Student Council office
   ],
   items: [
     ...upperCircles(),
@@ -286,15 +288,15 @@ const floor2 = buildFloor({
     lsh(121, 298, 367, B), lsh(122, 370, 438, B), lsh(123, 440, 507, B), lsh(124, 509, 577, B),
     lsh(125, 659, 728, B), lsh(126, 732, 800, B), lsh(127, 802, 870, B), lsh(128, 872, 938, B),
     R('lsh129', 'Viridescent Office', 'LSH 129', 984, 1052, 537, 629),
-    // HS Cafeteria 2nd floor
-    C('S', 'cafe-stairs-l', 359, CF(727), 'Stairs'), F('cafe-femalebath', 357, CF(749), 'Cafeteria 2nd floor'),
-    C('S', 'cafe-stairs-r', 802, CF(730), 'Stairs'), M('cafe-malebath', 802, CF(752), 'Cafeteria 2nd floor'),
-    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 382, 775, CF(742), CF(968), { door: 'top' }),
-    R('osl-space', 'OSL Space', '', 307, 364, CF(759), CF(974), { door: 'right' }),
-    R('osl-lmo', 'Office of Student Life / LMO Office', '', 795, 880, CF(765), CF(868), { door: 'left' }),
-    R('student-council', 'HS Student Council Office', '', 795, 880, CF(870), CF(973), { door: 'left' }),
+    // HS Cafeteria 2nd floor: bigger, with the icons tucked inside the top corners and spaced apart
+    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 372, 815, CF(742), CF(1050), { door: 'top' }),
+    C('S', 'cafe-stairs-l', 398, CF(772), 'Stairs', { noStub: true }), F('cafe-femalebath', 398, CF(822), 'Cafeteria 2nd floor', { noStub: true }),
+    C('S', 'cafe-stairs-r', 789, CF(772), 'Stairs', { noStub: true }), M('cafe-malebath', 789, CF(822), 'Cafeteria 2nd floor', { noStub: true }),
+    R('osl-space', 'OSL Space', '', 307, 364, CF(759), CF(974), { door: 'top' }),
+    R('osl-lmo', 'Office of Student Life / LMO Office', '', 825, 900, CF(742), CF(868), { door: 'top' }),
+    R('student-council', 'HS Student Council Office', '', 825, 900, CF(872), CF(1000), { door: 'right' }),
   ],
-  labels: [...upperLabels, { text: 'HS Cafeteria (2nd floor)', x: 578, y: CF(1002) }],
+  labels: [...upperLabels, { text: 'HS Cafeteria (2nd floor)', x: 594, y: CF(1074) }],
   panZoom: true,
   focus: (y) => y < 700, // opens on Building 1 and 2; pan down to reach the HS Cafeteria
 });
