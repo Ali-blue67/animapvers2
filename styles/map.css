@@ -28,6 +28,10 @@
   shape-rendering: geometricPrecision;
 }
 
+.hallway-line.round {
+  stroke-linecap: round;
+}
+
 .pwd-mode .hallway-line.pwd {
   stroke: #cfe8fb;
 }
@@ -230,4 +234,70 @@
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* ---- Scenery: roads, zebra crossings and the university oval ---- */
+.scenery {
+  pointer-events: none;
+}
+
+.road-curb {
+  fill: #c9ccd1;
+}
+
+.road-surface {
+  fill: #6f757d;
+}
+
+.road-lane {
+  stroke: #f4f1e6;
+  stroke-width: 2.5;
+  stroke-dasharray: 14 11;
+  stroke-linecap: butt;
+}
+
+.road-label {
+  fill: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-anchor: middle;
+}
+
+.crosswalk rect {
+  fill: rgba(255, 255, 255, 0.92);
+  pointer-events: none;
+}
+
+.oval-track {
+  fill: #d4694e;
+  stroke: #b34a33;
+  stroke-width: 2;
+}
+
+.oval-lane {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 1.4;
+}
+
+.oval-grass {
+  fill: #7fcf6f;
+  stroke: #5fae52;
+  stroke-width: 1.5;
+}
+
+.oval-field {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 1.6;
+}
+
+.oval-label {
+  fill: #14532d;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  text-anchor: middle;
+  letter-spacing: 0.02em;
 }

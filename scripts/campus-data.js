@@ -11,19 +11,19 @@
 // =====================================================================
 
 // ---------- Room colour categories ----------
+// blue = CSS labs + TESDA, orange = food / science / computer labs, yellow = offices & services,
+// green = classrooms, purple = faculty offices, gray = everything else (stock rooms, storage, housekeeper...).
+const CAT_GRAY = /stock ?room|storage|housekeeper/i;
 const CAT_BLUE = /css lab|tesda/i;
-const CAT_ORANGE = /food lab|science laboratory \d|computer laboratory/i;
+const CAT_ORANGE = /food lab|science lab|computer lab/i;
 const CAT_YELLOW =
-  /registrar|principal|coordinator|student life|lmo|student council|viridescent|comelec|lev office|resilience|animo|swc|conference|prefect|clinic/i;
-const CAT_PURPLE = /^LSH 21[2-5]$/; // faculty offices
-const NOT_CLASSROOM = ['221', '231', '241']; // small rooms the brief leaves out
+  /registrar|principal|coordinator|student life|lmo|student council|viridescent|comelec|la estrella|resilience|animo|swc|conference|prefect|clinic|bookstore|association/i;
 export function categoryFor(name) {
+  if (CAT_GRAY.test(name)) return 'gray';
   if (CAT_BLUE.test(name)) return 'blue';
   if (CAT_ORANGE.test(name)) return 'orange';
-  if (CAT_PURPLE.test(name)) return 'purple';
   if (CAT_YELLOW.test(name)) return 'yellow';
-  const m = /^LSH (\d{3})$/.exec(name);
-  if (m && !NOT_CLASSROOM.includes(m[1])) return 'green';
+  if (/^(LSH|MTH|CTH) \d{3}$/.test(name) || /classroom/i.test(name)) return 'green';
   return 'gray';
 }
 
@@ -70,7 +70,7 @@ function buildFloor(spec) {
   corridors.forEach((c) => {
     const pts = c.pts.map(([x, y]) => P(x, y));
     pts.forEach((p) => verts.push(p));
-    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, splits: [] });
+    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, curve: !!c.curve, w: c.w || 1, splits: [] });
   });
 
   // Place every item and find the corridor point it plugs into.
@@ -128,7 +128,7 @@ function buildFloor(spec) {
       const pair = [keys[i], keys[i + 1]].sort().join('|') + (s.pwd ? 'p' : 'n');
       if (seen.has(pair)) continue;
       seen.add(pair);
-      waypointEdges.push([keys[i], keys[i + 1], s.pwd]);
+      waypointEdges.push([keys[i], keys[i + 1], s.pwd, s.curve, s.w]);
     }
   });
 
@@ -139,7 +139,7 @@ function buildFloor(spec) {
     const connectsTo = p.hall ? nid(p.hall.pt) : null;
     if (it.t === 'room') {
       rooms.push({
-        id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: it.code || '', defaultCode: it.code || '', cat: categoryFor(it.name),
+        id: `${id}-${it.id}`, name: it.name, defaultName: it.name, code: it.code || '', defaultCode: it.code || '', cat: it.cat || categoryFor(it.name),
         x: p.x, y: p.y, width: p.width, height: p.height, nodeX: p.node[0], nodeY: p.node[1],
         doorX: p.door[0], doorY: p.door[1], connectsTo, kind: 'room',
       });
@@ -156,7 +156,9 @@ function buildFloor(spec) {
 
   const decorOut = decor.map((d) => {
     const c = P(d.x, d.y);
-    return { type: d.type, x: c[0], y: c[1], name: d.name };
+    const out = { ...d, x: c[0], y: c[1] };
+    ['w', 'h', 'rx', 'ry', 'span', 'len'].forEach((key) => { if (d[key] !== undefined) out[key] = d[key] * k; });
+    return out;
   });
   const labelsOut = labels.map((l) => {
     const c = P(l.x, l.y);
@@ -174,158 +176,265 @@ function buildFloor(spec) {
   return floor;
 }
 
+// ---------- Helpers for the HS complex + MTH / CTH on the Upper Ground ----------
+const rnd = (n) => Math.round(n * 10) / 10;
+// A drawing "frame": a separate page of the PDF placed onto the Upper Ground at the right spot.
+// (ax, ay) is a point on that page, (ux, uy) is where it lands on the Upper Ground, s is a scale.
+function frame(ax, ay, ux, uy, s = 1) {
+  const p = (x, y) => [rnd(ux + (x - ax) * s), rnd(uy + (y - ay) * s)];
+  return {
+    p,
+    pts: (a) => a.map(([x, y]) => p(x, y)),
+    room: (id, name, code, x1, x2, y1, y2, o) => {
+      const [a, b] = p(x1, y1);
+      const [c, d] = p(x2, y2);
+      return R(id, name, code, a, c, b, d, o);
+    },
+    c: (t, id, x, y, name, o) => { const [a, b] = p(x, y); return C(t, id, a, b, name, o); },
+  };
+}
+// Points along a quarter-circle, so bends in the paths are smooth.
+const arc = (cx, cy, r, a0, a1, n = 6) =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+
 // ===================== LOWER GROUND =====================
-const FY = (y) => y - 60; // Food Labs sit well below the CSS labs, like the cafeteria below Building 1 on the UG
 const lowerGround = buildFloor({
-  id: 'lower-ground', label: 'Lower Ground (LG)', hallWidth: 24,
+  id: 'lower-ground', label: 'Lower Ground (LG)', k: 1.3, hallWidth: 24,
   corridors: [
-    { pts: [[502, 103], [211, 103], [211, 303], [482, 303]] },
-    { pts: [[340, FY(684)], [680, FY(684)]] },
-    { pts: [[537, FY(568)], [537, FY(684)]], pwd: false }, // stairs up (red)
-    { pts: [[675, FY(568)], [675, FY(661)], [576, FY(661)], [576, FY(684)]] }, // ramp (blue)
+    { pts: [[394, 85], [194, 85], [194, 269], [500, 269]] },
+    { pts: [[302, 616], [617, 616]] },
+    { pts: [[490, 505], [490, 616]], pwd: false }, // stairs up to the HS Cafeteria (red)
+    { pts: [[622, 505], [622, 595], [526, 595], [526, 616]] }, // ramp up (blue)
   ],
   items: [
-    S('stairs-1', 252, 126), F('female-restroom', 232, 195, 'Building 2'),
-    S('stairs-2', 247, 277), M('male-restroom', 281, 277, 'Building 1'), E(187, 297),
-    R('staff-room', 'Staff Room / Storage', '', 377, 428, 112, 182),
-    R('lrc-basement', 'Learning Resource Center Basement', '', 439, 565, 112, 182),
-    R('css-lab-1', 'CSS Laboratory 1', '', 302, 387, 243, 291),
-    R('css-lab-2', 'CSS Laboratory 2', '', 395, 480, 243, 291),
-    R('css-lab-3', 'CSS Laboratory 3', '', 487, 556, 243, 340, { door: 'left' }),
-    F('female-restroom-food', 336, FY(681), 'Food Labs'), M('male-restroom-food', 679, FY(681), 'Food Labs'),
-    C('S', 'cafe-stairs', 537, FY(568), 'Stairs'),
-    C('RAMP', 'cafe-ramp', 675, FY(568), 'Ramp'),
-    R('food-lab-2', 'Food Lab 2', '', 340, 503, FY(692), FY(753)),
-    R('food-lab-1', 'Food Lab 1', '', 511, 670, FY(692), FY(753)),
+    S('stairs-1', 250, 105), F('female-restroom', 214, 168, 'Building 2'),
+    S('stairs-2', 285, 240), M('male-restroom', 316, 240, 'Building 1'), E(173, 261),
+    R('housekeeper', 'Housekeeper’s Quarters', '', 303, 396, 92, 158),
+    R('lrc-basement', 'Learning Resource Center Basement', '', 402, 521, 58, 158),
+    R('dtac-storage', 'DTAC Storage Room', '', 232, 268, 207, 253),
+    R('css-lab-1', 'CSS Laboratory 1', 'LSH 101', 335, 415, 207, 254),
+    R('bkp-room-1', 'BKP Room 1', 'LSH 102', 420, 500, 207, 254),
+    R('css-lab-2', 'CSS Laboratory 2', 'LSH 103', 505, 571, 207, 300, { door: 'left' }),
+    F('female-restroom-food', 298, 613, 'Food Labs'), M('male-restroom-food', 625, 613, 'Food Labs'),
+    C('S', 'cafe-stairs', 490, 509, 'Stairs'),
+    C('RAMP', 'cafe-ramp', 622, 509, 'Ramp'),
+    R('food-lab-2', 'Food Laboratory 2', '', 302, 458, 622, 682),
+    R('food-lab-1', 'Food Laboratory 1', '', 465, 617, 622, 682),
   ],
   labels: [
-    { text: 'HS Building 2', x: 309, y: 78 }, { text: 'HS Building 1', x: 346, y: 340 },
-    { text: 'Below HS Cafeteria', x: 520, y: FY(790) },
+    { text: 'HS Building 2', x: 354, y: 78 }, { text: 'HS Building 1', x: 349, y: 289 },
+    { text: 'Below HS Cafeteria', x: 470, y: 720 },
   ],
   panZoom: true,
 });
 
 // ===================== UPPER GROUND =====================
+// The Upper Ground holds the HS complex, and (further up and to the right) the walkway
+// past the road and the oval to Mariano Trias Hall (MTH) and Candido Tirona Hall (CTH).
+const path_ = frame(52, 706, 592, 419, 1); // "Pathways going to MTH/CTH" page
+const mth = frame(554, 749, 1134, -261, 0.6); // Mariano Trias Hall page
+const cth = frame(621, 749, 1063.2, -694.8, 0.6); // Candido Tirona Hall page
+const mthWalk = [[436, 26], [436, 546], ...arc(461, 546, 25, 180, 90, 10), ...arc(528, 596, 25, 270, 360, 10)];
+const pathWalk = [[52, 706], [459, 706], [459, 187], ...arc(478, 187, 19, 180, 270, 5), [594, 168], [594, 26]];
+
 const upperGround = buildFloor({
-  id: 'ground', label: 'Upper Ground (UG)', k: 1.6, hallWidth: 30, panZoom: true,
+  id: 'ground', label: 'Upper Ground (UG)', k: 2, hallWidth: 24, panZoom: true,
   corridors: [
-    { pts: [[218, 103], [758, 103], [758, 352], [218, 352], [218, 103]] },
-    { pts: [[510, 352], [510, 668]] },
-    { pts: [[384, 583], [510, 583]] }, // to the HS Chapel
-    { pts: [[311, 668], [510, 668]] }, // hallway hugging the cafeteria roof
-    { pts: [[311, 668], [311, 678]] }, // short stub toward the roof (left end)
-    { pts: [[488, 668], [488, 678]] }, // short stub toward the roof (right end)
-    { pts: [[398, 668], [398, 686]], pwd: false }, // stairs down to the Food Labs (red)
-    { pts: [[637, 352], [637, 417]], pwd: false }, // red: steps
-    { pts: [[588, 352], [588, 417], [637, 417]] }, // blue: ramp
-    { pts: [[637, 417], [637, 767]] },
-    { pts: [[510, 517], [637, 517]], pwd: false }, // red: steps
-    { pts: [[637, 467], [760, 467]] }, // Gate 2.5
+    // HS Building 1 + 2 loop
+    { pts: [[200, 84], [768, 84], [768, 314], [200, 314], [200, 84]] },
+    { pts: [[542, 314], [542, 376]] },
+    { pts: [[469, 376], [586, 376]] },
+    { pts: [[586, 314], [586, 376]], pwd: false }, // red: steps
+    { pts: [[586, 376], [586, 695]] },
+    { pts: [[469, 465], [586, 465]], pwd: false }, // red: steps
+    { pts: [[469, 314], [469, 607]] },
+    { pts: [[353, 526], [469, 526]] }, // to the HS Chapel
+    // hall along the cafeteria roof with two short stubs and the red stairs down
+    { pts: [[285, 584], [453, 584], [469, 584]] },
+    { pts: [[285, 577], [285, 605]] },
+    { pts: [[453, 579], [453, 607]] },
+    { pts: [[366, 584], [366, 610]], pwd: false },
+    // Gate 2.5 -> road -> MTH/CTH
+    { pts: [[586, 419], ...path_.pts(pathWalk).map(([x, y]) => [x, y])] },
+    // Mariano Trias Hall: right-hand walkway along the rooms, the left walkway to CTH, and the links between them
+    { pts: mth.pts([[554, 114], [554, 749]]) },
+    { pts: mth.pts([...mthWalk, [554, 596]]), curve: true },
+    { pts: mth.pts([[436, 47], [529, 47], ...arc(529, 72, 25, 270, 360, 4), [554, 114]]), pwd: false, w: 1.8, curve: true },
+    { pts: mth.pts([[436, 141], [453, 141], ...arc(453, 131, 10, 90, 0, 3), [463, 125], ...arc(479, 125, 16, 180, 270, 4), [554, 109]]), w: 1.8, curve: true },
+    // Candido Tirona Hall
+    { pts: cth.pts([[420, 16], [420, 657]]) },
+    { pts: cth.pts([[479, 16], [478.5, 650], [478.5, 716], ...arc(495.5, 716, 17, 180, 90, 4), [621, 733]]), curve: true },
+    { pts: cth.pts([[420, 614], [479, 614]]) },
+    { pts: cth.pts([[420, 327], [466, 327], ...arc(466, 340, 13, 270, 360, 3), [479, 346]]), pwd: false, curve: true },
+    { pts: cth.pts([[420, 656], [478.5, 656.5], [623, 657]]) },
+    { pts: cth.pts([[479, 397], [623, 397]]) },
+    { pts: cth.pts([[623, 334], [623, 657]]) },
+    { pts: cth.pts([[621, 657], [621, 733]]), pwd: false },
+    { pts: cth.pts([[621, 733], [621, 749]]) },
   ],
   items: [
     // Building 2 (top)
-    S('stairs-lrc', 262, 119), M('malebath-ug2', 476, 119, 'Building 2'), S('stairs-4', 503, 119), S('stairs-5', 733, 119),
-    R('lrc', 'Learning Resource Center', 'LRC', 287, 458, 112, 205),
-    R('lsh215', 'LSH 215', '', 545, 587, 112, 170), R('lsh214', 'LSH 214', '', 589, 630, 112, 170),
-    R('lsh213', 'LSH 213', '', 632, 673, 112, 170), R('lsh212', 'LSH 212', '', 675, 717, 112, 170),
-    R('hs-court', 'HS Court', '', 553, 813, 18, 87, { door: 'bottom' }),
+    S('stairs-lrc', 241, 105), M('malebath-ug2', 436, 104, 'Building 2'), S('stairs-4', 460, 104), S('stairs-5', 725, 107),
+    R('lrc', 'Learning Resource Center UG', '', 254, 423, 90, 178),
+    R('stock-room-2', 'Stock Room 2', '', 475, 513, 92, 146),
+    R('lsh215', 'Junior High School Faculty Department', 'LSH 215', 513, 554, 92, 146, { cat: 'purple' }),
+    R('lsh214', 'LSHF Faculty Department', 'LSH 214', 554, 594, 92, 146, { cat: 'purple' }),
+    R('lsh213', 'ASET Faculty Department', 'LSH 213', 593, 633, 92, 146, { cat: 'purple' }),
+    R('lsh212', 'Patriot’s Lounge / Sports Equipment Stock Room', 'LSH 212', 633, 673, 92, 146, { cat: 'purple' }),
+    R('lsh211', 'Parent’s Association Office', 'LSH 211', 673, 714, 92, 146),
+    R('hs-court', 'HS Court', '', 509, 750, 6, 70, { door: 'bottom' }),
     // Building 1 (bottom)
-    S('stairs-1', 257, 337), M('malebath', 281, 337, 'Building 1'), E(203, 352),
-    F('femalebath', 486, 337, 'Building 1'), S('stairs-2', 511, 337), S('stairs-3', 733, 337),
-    R('lsh111', 'Registrar Office', 'LSH 111', 297, 339, 279, 336), R('lsh112', 'TESDA Office', 'LSH 112', 341, 383, 279, 336),
-    R('lsh113', 'Principal Office', 'LSH 113', 385, 427, 279, 336), R('lsh114', 'Academic Coordinator Office', 'LSH 114', 429, 470, 279, 336),
-    R('lsh115', 'Computer Laboratory 1', 'LSH 115', 528, 570, 279, 336), R('lsh116', 'Computer Laboratory 2', 'LSH 116', 572, 614, 279, 336),
-    R('lsh117', 'Students Hive', 'LSH 117', 616, 657, 279, 336), R('lsh118', 'Sports Coordinator Office', 'LSH 118', 659, 701, 279, 336),
+    S('stairs-1', 228, 291), M('malebath', 250, 291, 'Building 1'), E(171, 309),
+    F('femalebath', 439, 287, 'Building 1'), S('stairs-2', 462, 287), S('stairs-3', 690, 288),
+    R('lsh111', 'Registrar’s Office', 'LSH 111', 264, 304, 247, 300),
+    R('lsh112', 'Principal’s Office & TESDA Office', 'LSH 112', 304, 345, 247, 300),
+    R('lsh113', 'Associate Principal’s Office', 'LSH 113', 345, 385, 247, 300),
+    R('lsh114', 'Academic Coordinator’s Office', 'LSH 114', 385, 425, 247, 300),
+    R('lsh115', 'IT Server Room', 'LSH 115', 481, 516, 247, 301),
+    R('lsh116', 'Computer Laboratory 1', 'LSH 116', 514, 554, 247, 301),
+    R('lsh117', 'Computer Laboratory 2', 'LSH 117', 554, 594, 247, 301),
+    R('lsh118', 'Student’s HIVE', 'LSH 118', 594, 634, 247, 301),
+    R('lsh119', 'Global Classroom', 'LSH 119', 634, 674, 247, 301),
+    R('stock-room-1', 'Stock Room 1', '', 705, 746, 245, 299),
     // Gate 2.5 and the right-hand column
-    C('GATE', 'gate-2-5', 637, 467, 'Gate 2.5 (Entrance)', { pinned: true, noStub: true }), // the EN circle: where the gate path meets the corridor
-    R('hs-clinic', 'HS Clinic', '', 550, 628, 426, 454, { door: 'right' }),
-    R('prefect', 'SDFO Prefect', '', 550, 630, 456, 498, { door: 'right' }),
-    R('bookstore', 'National Bookstore', '', 562, 628, 526, 571), R('resilience', 'Office of Resilience and Sustainability', '', 562, 628, 575, 621),
-    R('animo-lounge', 'Animo Lounge', '', 562, 628, 625, 669), R('swc', 'SWC', '', 562, 628, 673, 718),
-    R('conference-room', 'Conference Room', '', 562, 628, 721, 767),
+    C('GATE', 'gate-2-5', 590, 416, 'Gate 2.5 (Entrance)', { pinned: true, noStub: true }), // the EN circle: where the gate path meets the corridor
+    R('hs-clinic', 'HS Clinic', '', 505, 579, 381, 407, { door: 'right' }),
+    R('prefect', 'SDFO Prefect', '', 505, 579, 409, 449, { door: 'right' }),
+    R('bookstore', 'National Bookstore', '', 516, 579, 473, 515, { door: 'right' }),
+    R('resilience', 'Office of Resilience and Sustainability', '', 516, 579, 518, 560, { door: 'right' }),
+    R('animo-lounge', 'Animo Lounge', '', 516, 579, 563, 605, { door: 'right' }),
+    R('swc', 'SWC Office', '', 516, 579, 607, 650, { door: 'right' }),
+    R('conference-room', 'Conference Room', '', 516, 579, 652, 695, { door: 'right' }),
     // Chapel and cafeteria (1st floor)
-    R('hs-chapel', 'HS Chapel', '', 277, 382, 515, 606, { doorAt: [382, 583], door: 'right' }),
-    R('hs-cafeteria', 'HS Cafeteria', '', 282, 515, 680, 767, { doorAt: [488, 680], door: 'top' }),
-    C('S', 'cafe-stairs-l', 297, 695, 'Stairs', { noStub: true }), F('cafe-femalebath', 297, 718, 'Cafeteria', { noStub: true }),
-    C('S', 'cafe-stairs-r', 500, 695, 'Stairs', { noStub: true }), M('cafe-malebath', 500, 718, 'Cafeteria', { noStub: true }),
-    C('S', 'cafe-stairs-down', 398, 695, 'Stairs', { noStub: true }),
-    C('RAMP', 'cafe-ramp-down', 510, 648, 'Ramp', { noStub: true }), // on the straight path at the right of the cafeteria
+    R('hs-chapel', 'HS Chapel', '', 253, 352, 462, 548, { door: 'right', doorAt: [352, 526] }),
+    R('hs-cafeteria', 'HS Cafeteria', '', 259, 475, 610, 695, { doorAt: [453, 610], door: 'top' }),
+    C('S', 'cafe-stairs-l', 272, 626, 'Stairs', { noStub: true }), F('cafe-femalebath', 272, 652, 'Cafeteria', { noStub: true }),
+    C('S', 'cafe-stairs-r', 462, 626, 'Stairs', { noStub: true }), M('cafe-malebath', 462, 652, 'Cafeteria', { noStub: true }),
+    C('S', 'cafe-stairs-down', 366, 596, 'Stairs', { noStub: true }),
+    C('RAMP', 'cafe-ramp-down', 468, 590, 'Ramp', { noStub: true }), // on the straight path at the right of the cafeteria
+    // ---- Mariano Trias Hall (MTH) ----
+    mth.room('mth101', 'MTH 101', '', 562, 661, 73, 146, { door: 'left' }),
+    mth.room('mth102', 'MTH 102', '', 562, 661, 146, 218, { door: 'left' }),
+    mth.room('mth103', 'MTH 103', '', 562, 661, 218, 291, { door: 'left' }),
+    mth.room('mth104', 'MTH 104', '', 562, 661, 291, 364, { door: 'left' }),
+    mth.room('mth105', 'MTH 105', '', 562, 661, 364, 436, { door: 'left' }),
+    mth.room('mth106', 'MTH 106', '', 562, 661, 436, 509, { door: 'left' }),
+    mth.c('F', 'mth-femalebath', 577, 525, 'Female Bathroom (Mariano Trias Hall)'), mth.c('M', 'mth-malebath', 576, 559, 'Male Bathroom (Mariano Trias Hall)'),
+    // ---- Candido Tirona Hall (CTH) ----
+    ...[[115, 9, 66], [114, 66, 123], [113, 123, 181], [112, 181, 238], [111, 238, 295]]
+      .map(([n, y1, y2]) => cth.room(`cth${n}`, `CTH ${n}`, '', 337, 415, y1, y2, { door: 'right' })),
+    ...[[110, 366, 423], [109, 423, 480], [108, 480, 538], [107, 538, 595], [106, 595, 652]]
+      .map(([n, y1, y2]) => cth.room(`cth${n}`, `CTH ${n}`, '', 337, 415, y1, y2, { door: 'right' })),
+    ...[[101, 397, 460], [102, 460, 523], [103, 523, 587], [104, 587, 650], [105, 650, 713]]
+      .map(([n, y1, y2]) => cth.room(`cth${n}`, `CTH ${n}`, '', 626, 712, y1, y2, { door: 'left' })),
+    cth.room('hesm-faculty', 'HESM Faculty', '', 411, 472, 655, 700, { door: 'top', cat: 'purple' }),
+    cth.c('S', 'cth-stairs-1', 403, 317, 'Stairs'), cth.c('F', 'cth-femalebath-1', 403, 343, 'Female Bathroom (Candido Tirona Hall, left)'),
+    cth.c('F', 'cth-femalebath-2', 612, 340, 'Female Bathroom (Candido Tirona Hall, right)'), cth.c('M', 'cth-malebath', 611, 371, 'Male Bathroom (Candido Tirona Hall)'),
+    cth.c('S', 'cth-stairs-2', 547, 376, 'Stairs'), cth.c('S', 'cth-stairs-3', 545, 675, 'Stairs'),
   ],
-  decor: [{ type: 'fountain', x: 432, y: 555, name: 'Fountain' }],
-  labels: [{ text: 'HS Building 2', x: 488, y: 88 }, { text: 'HS Building 1', x: 440, y: 388 }, { text: 'Gate 2.5 (Entrance)', x: 712, y: 452 }],
-  focus: (y) => y > 90 && y < 380,
+  decor: [
+    { type: 'fountain', x: 398, y: 501, name: 'Fountain' },
+    // the road that crosses the walkway, the one to MTH/CTH, and the oval
+    { type: 'road', x: 919.5, y: 130, w: 77, h: 706, dir: 'v', name: 'Road' },
+    { type: 'road', x: 1126, y: -167.5, w: 344, h: 27, dir: 'h', name: 'Road' },
+    { type: 'oval', x: 1174, y: 157, rx: 143, ry: 250, name: 'University Oval' },
+    { type: 'crosswalk', x: 919.5, y: 419, span: 77, len: 30, dir: 'ew' },
+    { type: 'crosswalk', x: 1134, y: -167.5, span: 27, len: 30, dir: 'ns' },
+  ],
+  labels: [
+    { text: 'HS Building 2', x: 438, y: 74 }, { text: 'HS Building 1', x: 429, y: 330 }, { text: 'Gate 2.5 (Entrance)', x: 680, y: 408 },
+    { text: 'Mariano Trias Hall (MTH)', x: 1325, y: -640 }, { text: 'Candido Tirona Hall (CTH)', x: 1235, y: -820 },
+  ],
 });
 
 // ===================== 2nd / 3rd / 4th FLOOR =====================
-const upperCorridors = [{ pts: [[1037, 230], [173, 230], [173, 645], [1037, 645]] }];
-const upperCircles = () => [
-  S('stairs-b2-1', 246, 254), F('femalebath-b2', 600, 254, 'Building 2'), S('stairs-b2-2', 642, 254),
-  S('stairs-b2-3', 979, 254), M('malebath-b2', 197, 436, 'Building 2'),
-  S('stairs-b1-1', 238, 621), M('malebath-b1', 277, 621, 'Building 1'), F('femalebath-b1', 600, 621, 'Building 1'),
-  S('stairs-b1-2', 634, 621), S('stairs-b1-3', 967, 621), E(150, 634),
-];
-const T = [248, 342]; // top-row room height
-const B = [530, 627]; // bottom-row room height
-const lsh = (n, x1, x2, y) => R(`lsh${n}`, `LSH ${n}`, '', x1, x2, y[0], y[1]);
-const upperLabels = [{ text: 'HS Building 2', x: 605, y: 212 }, { text: 'HS Building 1', x: 605, y: 692 }];
-
-const CF = (y) => y + 190; // HS Cafeteria (2nd floor) sits well below Building 1 and 2
 const floor2 = buildFloor({
-  id: 'level-2', label: '2nd Floor', hallWidth: 24,
+  id: 'level-2', label: '2nd Floor', k: 2, hallWidth: 24, panZoom: true,
   corridors: [
-    ...upperCorridors,
-    // HS Cafeteria 2nd floor: its own loop, NOT joined to Building 1/2
-    // one hallway along the roof of the cafeteria with two short stubs, like the UG
-    { pts: [[300, CF(731)], [915, CF(731)]], pwd: false },
-    { pts: [[420, CF(709)], [420, CF(731)]], pwd: false },
-    { pts: [[765, CF(709)], [765, CF(731)]], pwd: false },
-    { pts: [[915, CF(731)], [915, CF(1000)]], pwd: false }, // reaches the Student Council office
+    { pts: [[906, 34], [396, 34], [396, 276], [915, 276]] },
+    { pts: [[901, 34], [901, 73]] },
+    // HS Cafeteria 2nd floor: its own loop (green on the PDF = not wheelchair accessible), NOT joined to Building 1/2
+    { pts: [[339, 502], [729, 502], [729, 744], [339, 744], [339, 502]], pwd: false },
   ],
   items: [
-    ...upperCircles(),
-    R('unnamed-1', 'Unnamed Room 1', '', 291, 363, T[0], T[1]), lsh(228, 365, 432, T), lsh(227, 434, 502, T), lsh(226, 504, 571, T),
-    lsh(225, 670, 740, T), lsh(224, 742, 810, T), lsh(223, 812, 880, T), lsh(222, 882, 950, T), R('lsh221', 'LSH 221', '', 1008, 1053, 244, 298),
-    lsh(121, 298, 367, B), lsh(122, 370, 438, B), lsh(123, 440, 507, B), lsh(124, 509, 577, B),
-    lsh(125, 659, 728, B), lsh(126, 732, 800, B), lsh(127, 802, 870, B), lsh(128, 872, 938, B),
-    R('lsh129', 'Viridescent Office', 'LSH 129', 984, 1052, 537, 629),
-    // HS Cafeteria 2nd floor: bigger, with the icons tucked inside the top corners and spaced apart
-    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 372, 815, CF(742), CF(1050), { door: 'top' }),
-    C('S', 'cafe-stairs-l', 398, CF(772), 'Stairs', { noStub: true }), F('cafe-femalebath', 398, CF(822), 'Cafeteria 2nd floor', { noStub: true }),
-    C('S', 'cafe-stairs-r', 789, CF(772), 'Stairs', { noStub: true }), M('cafe-malebath', 789, CF(822), 'Cafeteria 2nd floor', { noStub: true }),
-    R('osl-space', 'OSL Space', '', 307, 364, CF(759), CF(974), { door: 'top' }),
-    R('osl-lmo', 'Office of Student Life / LMO Office', '', 825, 900, CF(742), CF(868), { door: 'top' }),
-    R('student-council', 'HS Student Council Office', '', 825, 900, CF(872), CF(1000), { door: 'right' }),
+    S('stairs-b2-1', 439, 57), F('femalebath-b2', 644, 53, 'Building 2'), S('stairs-b2-2', 669, 53), S('stairs-b2-3', 866, 53),
+    M('malebath-b2', 416, 154, 'Building 2'),
+    S('stairs-b1-1', 434, 250), M('malebath-b1', 457, 250, 'Building 1'), S('stairs-b1-3', 859, 253),
+    F('femalebath-b1', 645, 256, 'Building 1'), S('stairs-b1-2', 665, 256), E(365, 269),
+    R('lsh229', 'TPS Lab 2 & TESDA Registrar and Processing Office & Audit Room', 'LSH 229', 452, 507, 45, 101),
+    R('bkp-room-2', 'BKP Room 2', 'LSH 228', 507, 548, 45, 101),
+    R('lsh227', 'LSH 227', '', 548, 588, 45, 101), R('lsh226', 'LSH 226', '', 588, 629, 45, 101),
+    R('lsh225', 'LSH 225', '', 685, 727, 42, 98), R('lsh224', 'LSH 224', '', 727, 768, 42, 98),
+    R('lsh223', 'LSH 223', '', 768, 809, 42, 98), R('lsh222', 'LSH 222', '', 809, 849, 42, 98),
+    R('lsh221', 'LSH 221', '', 881, 921, 73, 127, { door: 'top' }),
+    R('lsh121', 'LSH 121', '', 468, 510, 208, 264), R('lsh122', 'LSH 122', '', 510, 551, 208, 264),
+    R('lsh123', 'LSH 123', '', 551, 591, 208, 264), R('lsh124', 'LSH 124', '', 591, 632, 208, 264),
+    R('lsh125', 'LSH 125', '', 679, 721, 211, 267), R('lsh126', 'LSH 126', '', 721, 761, 211, 267),
+    R('lsh127', 'LSH 127', '', 761, 802, 211, 267), R('lsh128', 'LSH 128', '', 802, 843, 211, 267),
+    R('lsh129', 'Viridescent Office', 'LSH 129', 875, 915, 212, 266),
+    // HS Cafeteria 2nd floor
+    R('hs-cafeteria-2f', 'HS Cafeteria (2nd Floor)', '', 347, 721, 510, 737, { door: 'top' }),
+    C('S', 'cafe-stairs-l', 325, 500, 'Stairs'), F('cafe-femalebath', 325, 522, 'Cafeteria 2nd floor'),
+    C('S', 'cafe-stairs-r', 738, 502, 'Stairs'), M('cafe-malebath', 739, 522, 'Cafeteria 2nd floor'),
+    R('osl-space', 'OSL Space', '', 282, 337, 534, 751, { door: 'right' }),
+    R('osl-lmo', 'Lasallian Mission Office & Student Life Office', '', 731, 811, 534, 648, { door: 'left' }),
+    R('student-council', 'Student Council Office', '', 731, 811, 648, 743, { door: 'left' }),
   ],
-  labels: [...upperLabels, { text: 'HS Cafeteria (2nd floor)', x: 594, y: CF(1074) }],
-  panZoom: true,
-  focus: (y) => y < 700, // opens on Building 1 and 2; pan down to reach the HS Cafeteria
+  labels: [{ text: 'HS Building 2', x: 661, y: 26 }, { text: 'HS Building 1', x: 653, y: 294 }],
 });
 
 const floor3 = buildFloor({
-  id: 'level-3', label: '3rd Floor', hallWidth: 24, corridors: upperCorridors,
-  items: [
-    ...upperCircles(),
-    R('unnamed-2', 'Unnamed Room 2', '', 291, 363, T[0], T[1]), lsh(238, 365, 432, T), lsh(237, 434, 502, T), lsh(236, 504, 571, T),
-    lsh(235, 670, 740, T), lsh(234, 742, 810, T), lsh(233, 812, 880, T), lsh(232, 882, 950, T), R('lsh231', 'LSH 231', '', 1008, 1053, 244, 298),
-    lsh(131, 298, 367, B), lsh(132, 370, 438, B), lsh(133, 440, 507, B), lsh(134, 509, 577, B),
-    lsh(135, 659, 728, B), lsh(136, 732, 800, B), lsh(137, 802, 870, B), lsh(138, 872, 938, B),
-    R('lsh139', 'COMELEC Office', 'LSH 139', 984, 1052, 537, 629),
+  id: 'level-3', label: '3rd Floor', k: 1.25, hallWidth: 24,
+  corridors: [
+    { pts: [[989, 202], [160, 202], [160, 583], [983, 583]] },
+    { pts: [[979, 202], [979, 256]] },
   ],
-  labels: upperLabels,
+  items: [
+    S('stairs-b2-1', 202, 239), S('stairs-b2-2', 573, 233), F('femalebath-b2', 613, 234, 'Building 2'), S('stairs-b2-3', 925, 229),
+    M('malebath-b2', 190, 390, 'Building 2'),
+    S('stairs-b1-1', 201, 538), M('malebath-b1', 236, 538, 'Building 1'), F('femalebath-b1', 553, 552, 'Building 1'),
+    S('stairs-b1-2', 584, 552), S('stairs-b1-3', 891, 548), E(111, 572),
+    R('stock-room-4', 'Stock Room 4', '', 236, 292, 217, 305), R('lsh239', 'LSH 239', '', 292, 359, 217, 305),
+    R('lsh238', 'LSH 238', '', 359, 423, 217, 305), R('lsh237', 'LSH 237', '', 423, 487, 217, 305), R('lsh236', 'LSH 236', '', 487, 551, 217, 305),
+    R('lsh235', 'LSH 235', '', 640, 707, 212, 300), R('lsh234', 'LSH 234', '', 707, 771, 212, 300),
+    R('lsh233', 'LSH 233', '', 771, 835, 212, 300), R('lsh232', 'LSH 232', '', 835, 899, 212, 300),
+    R('lsh231', 'LSH 231', '', 946, 1010, 256, 344, { door: 'top' }),
+    R('lsh131', 'LSH 131', '', 273, 339, 476, 565), R('lsh132', 'LSH 132', '', 339, 403, 476, 565),
+    R('lsh133', 'LSH 133', '', 403, 468, 476, 565), R('lsh134', 'LSH 134', '', 468, 532, 476, 565),
+    R('lsh135', 'LSH 135', '', 606, 672, 480, 569), R('lsh136', 'LSH 136', '', 672, 736, 480, 569),
+    R('lsh137', 'LSH 137', '', 736, 801, 480, 569), R('lsh138', 'LSH 138', '', 801, 865, 480, 569),
+    R('lsh139', 'COMELEC Office', 'LSH 139', 916, 983, 482, 568),
+  ],
+  labels: [{ text: 'HS Building 2', x: 565, y: 185 }, { text: 'HS Building 1', x: 553, y: 608 }],
 });
 
 const floor4 = buildFloor({
-  id: 'level-4', label: '4th Floor', hallWidth: 24, corridors: upperCorridors,
-  items: [
-    ...upperCircles(),
-    R('scilab4', 'Science Laboratory 4', 'LSH 248', 293, 435, T[0], T[1]), R('scilab3', 'Science Laboratory 3', 'LSH 247', 437, 564, T[0], T[1]),
-    lsh(246, 670, 740, T), R('mmh', 'Mutien Marie Hall (MMH)', '', 748, 949, T[0], T[1]), R('lsh241', 'LSH 241', '', 1008, 1053, 244, 298),
-    R('scilab1', 'Science Laboratory 1', '', 298, 407, B[0], B[1]), R('scilab2', 'Science Laboratory 2', '', 409, 507, B[0], B[1]),
-    R('scistock', 'Science Lab Stock Room', 'LSH 144', 509, 577, B[0], B[1]),
-    lsh(145, 659, 728, B), lsh(146, 732, 800, B), lsh(147, 802, 870, B), lsh(148, 872, 938, B),
-    R('lsh149', 'LEV Office', 'LSH 149', 984, 1052, 537, 629),
+  id: 'level-4', label: '4th Floor', k: 1.25, hallWidth: 24,
+  corridors: [
+    { pts: [[970, 201], [125, 201], [125, 585], [1007, 585]] },
+    { pts: [[961, 201], [961, 244]] },
   ],
-  labels: upperLabels,
+  items: [
+    S('stairs-b2-1', 190, 238), F('femalebath-b2', 551, 232, 'Building 2'), S('stairs-b2-2', 590, 232), S('stairs-b2-3', 901, 231),
+    M('malebath-b2', 154, 391, 'Building 2'),
+    S('stairs-b1-1', 183, 543), M('malebath-b1', 218, 543, 'Building 1'), F('femalebath-b1', 553, 552, 'Building 1'),
+    S('stairs-b1-2', 584, 552), S('stairs-b1-3', 891, 548), E(76, 572),
+    R('stock-room-5', 'Stock Room 5', '', 215, 269, 219, 308),
+    R('scilab4', 'Science Lab 4', 'LSH 248 - 249', 269, 401, 219, 307),
+    R('scilab3', 'Science Lab 3', 'LSH 247 - 248', 401, 521, 219, 307),
+    R('lsh246', 'LSH 246', '', 616, 683, 213, 302),
+    R('mmh', 'Mutien Marie Hall (MMH)', '', 688, 875, 213, 302),
+    R('vip-room', 'VIP Room', '', 930, 992, 244, 317, { door: 'top' }),
+    R('scilab1', 'Science Laboratory 1', '', 247, 359, 476, 565), R('scilab2', 'Science Laboratory 2', '', 359, 468, 476, 565),
+    R('scistock', 'Science Laboratory Stockroom', '', 468, 532, 476, 565),
+    R('lsh145', 'LSH 145', '', 606, 672, 480, 569), R('lsh146', 'LSH 146', '', 672, 736, 480, 569),
+    R('lsh147', 'LSH 147', '', 736, 801, 480, 569), R('lsh148', 'LSH 148', '', 801, 865, 480, 569),
+    R('lsh149', 'La Estrella Verde Office', 'LSH 149', 916, 1007, 482, 568),
+  ],
+  labels: [{ text: 'HS Building 2', x: 565, y: 185 }, { text: 'HS Building 1', x: 553, y: 608 }],
 });
 
 export const floors = {
@@ -376,7 +485,7 @@ function buildFloorGraph(floor) {
   };
 
   floor.waypoints.forEach((wp) => addNode(wp.id, wp.x, wp.y));
-  floor.waypointEdges.forEach(([a, b, pwd]) => addEdge(a, b, euclidean(nodes[a], nodes[b]), pwd));
+  floor.waypointEdges.forEach(([a, b, pwd, , w]) => addEdge(a, b, euclidean(nodes[a], nodes[b]) * (w || 1), pwd));
   [...floor.rooms, ...floor.connectors].forEach((r) => {
     addNode(r.id, r.nodeX, r.nodeY);
     if (nodes[r.connectsTo]) addEdge(r.id, r.connectsTo, euclidean(nodes[r.id], nodes[r.connectsTo]), true);

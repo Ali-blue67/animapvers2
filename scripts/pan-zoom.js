@@ -27,8 +27,9 @@ export function enablePanZoom(svg, homeRect, worldRect = homeRect) {
 
   const home = fit(homeRect);
   const viewBox = { ...home };
-  const minWidth = home.width * 0.12;
-  const maxWidth = Math.max(fit(worldRect).width, home.width) * 1.05;
+  // Zoom-in is limited; zoom-out stops exactly where the whole floor (plus its white margin) is in view.
+  const minWidth = Math.min(home.width * 0.12, 430);
+  const maxWidth = Math.max(fit(worldRect).width, home.width);
 
   const pointers = new Map();
   let lastPanPoint = null;

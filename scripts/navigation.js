@@ -102,8 +102,11 @@ function setActiveFloor(floorId) {
   // Only Upper Ground is flagged panZoom in campus-data.js; the other
   // floors keep the simple auto-fit view.
   if (floor.panZoom) {
-    const home = floor.homeFocus ? computeFloorBounds(floor.homeFocus) : bounds;
-    panZoom = enablePanZoom(svgRoot, home, bounds);
+    // White margin all round, so at the furthest zoom-out the whole plan floats inside empty space.
+    const margin = Math.max(bounds.width, bounds.height) * 0.06;
+    const world = { x: bounds.x - margin, y: bounds.y - margin, width: bounds.width + margin * 2, height: bounds.height + margin * 2 };
+    const home = floor.homeFocus ? computeFloorBounds(floor.homeFocus) : world;
+    panZoom = enablePanZoom(svgRoot, home, world);
   }
   mapTools.hidden = !floor.panZoom;
 

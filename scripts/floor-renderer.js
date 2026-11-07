@@ -29,7 +29,11 @@ export function computeFloorBounds(floor) {
   // Corridors and decorations also count, so nothing is cropped.
   const hw = (floor.hallWidth || 24) / 2;
   (floor.waypoints || []).forEach((wp) => grow(wp.x, wp.y, hw, hw));
-  (floor.decor || []).forEach((d) => grow(d.x, d.y, CIRCLE_R, CIRCLE_R));
+  (floor.decor || []).forEach((d) => {
+    if (d.type === 'oval') grow(d.x, d.y, d.rx, d.ry);
+    else if (d.type === 'road') grow(d.x, d.y, d.w / 2, d.h / 2);
+    else if (d.type !== 'crosswalk') grow(d.x, d.y, CIRCLE_R, CIRCLE_R);
+  });
 
   if (!isFinite(minX)) return { x: 0, y: 0, width: 800, height: 500 };
 
@@ -44,8 +48,8 @@ function wrapLabel(text, maxChars) {
   const push = (word) => {
     while (word.length > maxChars) {
       if (current) { lines.push(current); current = ''; }
-      lines.push(word.slice(0, maxChars));
-      word = word.slice(maxChars);
+      lines.push(`${word.slice(0, maxChars - 1)}-`); // a word that cannot fit is split with a hyphen
+      word = word.slice(maxChars - 1);
     }
     if (!current) current = word;
     else if (`${current} ${word}`.length <= maxChars) current += ` ${word}`;
@@ -56,29 +60,42 @@ function wrapLabel(text, maxChars) {
   return lines;
 }
 
-// Picks the biggest font size at which the title (and the small description under it)
-// fit completely INSIDE the box. Never lets text spill outside the room.
-function fitText(name, code, w, h) {
-  const padX = 7;
-  const padY = 6;
+// Every room name uses the SAME size. Only a room that is clearly larger than the usual
+// classroom gets bigger writing (never smaller than the standard). The text is wrapped to the
+// room and, only as a last resort for a very long name, nudged down so it still stays INSIDE the box.
+const BASE_FONT = 10.5;
+const STD_AREA = 64 * 86; // a typical classroom box
+export function fontFor(w, h) {
+  const scale = Math.min(1.5, Math.max(1, Math.sqrt((w * h) / STD_AREA) * 0.8));
+  return Math.round(BASE_FONT * scale * 2) / 2;
+}
+
+export function fitText(name, code, w, h) {
+  const padX = 6;
+  const padY = 5;
   const longestWord = Math.max(...String(name).split(/\s+/).map((x) => x.length));
   const measure = (size) => {
-    const charW = size * 0.6; // average glyph width of the bold UI font
+    const charW = size * 0.58; // average glyph width of the UI font
     const maxChars = Math.max(2, Math.floor((w - padX * 2) / charW));
     const lines = wrapLabel(name, maxChars);
-    const codeSize = Math.max(6, size * 0.82);
+    const codeSize = Math.max(7, size * 0.86);
     const codeFits = !code || String(code).length * codeSize * 0.58 <= w - padX * 2;
-    const total = lines.length * size * 1.2 + (code ? codeSize * 1.3 : 0);
-    return { size, codeSize, lines, lineHeight: size * 1.2, total, maxChars, ok: total <= h - padY * 2 && codeFits };
+    const total = lines.length * size * 1.18 + (code ? codeSize * 1.3 : 0);
+    return { size, codeSize, lines, lineHeight: size * 1.18, total, maxChars, ok: total <= h - padY * 2 && codeFits };
   };
-  // Pass 1: biggest size where no word has to be cut in half. Pass 2: allow cutting.
+  const start = fontFor(w, h);
+  const floorSize = Math.max(6.5, start * 0.78);
   for (const allowCut of [false, true]) {
-    for (let size = 12.5; size >= 6; size -= 0.5) {
+    for (let size = start; size >= floorSize; size -= 0.5) {
       const m = measure(size);
       if (m.ok && (allowCut || longestWord <= m.maxChars)) return m;
     }
   }
-  return measure(6);
+  for (let size = floorSize; size >= 5.5; size -= 0.5) {
+    const m = measure(size);
+    if (m.ok) return m;
+  }
+  return measure(5.5);
 }
 
 // Which pictogram a marker gets (data can name one directly via iconName).
@@ -175,6 +192,63 @@ function renderRoom(root, r) {
   root.appendChild(group);
 }
 
+// Roads: dark asphalt with light curbs and a dashed centre line, so they read as roads at a glance.
+function drawScenery(root, d) {
+  const g = svgEl('g', { class: d.type === 'oval' ? 'scenery oval' : 'scenery road' });
+  const title = svgEl('title');
+  title.textContent = d.name || d.type;
+  g.appendChild(title);
+
+  if (d.type === 'road') {
+    const x = d.x - d.w / 2;
+    const y = d.y - d.h / 2;
+    g.appendChild(svgEl('rect', { x, y, width: d.w, height: d.h, rx: 5, class: 'road-curb' }));
+    g.appendChild(svgEl('rect', { x: x + 4, y: y + 4, width: d.w - 8, height: d.h - 8, rx: 3, class: 'road-surface' }));
+    const lane = d.dir === 'v'
+      ? { x1: d.x, y1: y + 12, x2: d.x, y2: y + d.h - 12 }
+      : { x1: x + 12, y1: d.y, x2: x + d.w - 12, y2: d.y };
+    g.appendChild(svgEl('line', { ...lane, class: 'road-lane' }));
+    const lx = d.dir === 'v' ? d.x : d.x - d.w * 0.3;
+    const ly = d.dir === 'v' ? d.y + d.h * 0.25 : d.y;
+    const label = svgEl('text', {
+      x: lx, y: ly, class: 'road-label', 'dominant-baseline': 'central',
+      transform: d.dir === 'v' ? `rotate(-90 ${lx} ${ly})` : '',
+    });
+    label.textContent = 'ROAD';
+    g.appendChild(label);
+  } else {
+    // Running track: brick-red ring, lane lines, and a grass field with its centre marking.
+    g.appendChild(svgEl('ellipse', { cx: d.x, cy: d.y, rx: d.rx, ry: d.ry, class: 'oval-track' }));
+    [0.93, 0.86].forEach((f) => g.appendChild(svgEl('ellipse', { cx: d.x, cy: d.y, rx: d.rx * f, ry: d.ry * f, class: 'oval-lane' })));
+    g.appendChild(svgEl('ellipse', { cx: d.x, cy: d.y, rx: d.rx * 0.8, ry: d.ry * 0.8, class: 'oval-grass' }));
+    g.appendChild(svgEl('rect', { x: d.x - d.rx * 0.5, y: d.y - d.ry * 0.62, width: d.rx, height: d.ry * 1.24, rx: 8, class: 'oval-field' }));
+    g.appendChild(svgEl('line', { x1: d.x - d.rx * 0.5, y1: d.y, x2: d.x + d.rx * 0.5, y2: d.y, class: 'oval-field' }));
+    const label = svgEl('text', { x: d.x, y: d.y, class: 'oval-label' });
+    ['University Oval', 'Track Court'].forEach((t, i) => {
+      const span = svgEl('tspan', { x: d.x, dy: i === 0 ? '-0.2em' : '1.25em' });
+      span.textContent = t;
+      label.appendChild(span);
+    });
+    g.appendChild(label);
+  }
+  root.appendChild(g);
+}
+
+// Zebra stripes: walking 'ew' (east-west) across a north-south road, or 'ns' across an east-west road.
+function drawCrosswalk(root, d) {
+  const g = svgEl('g', { class: 'crosswalk' });
+  const bar = 4.5;
+  const gap = 4.5;
+  const count = Math.max(2, Math.floor((d.span - 6) / (bar + gap)));
+  const used = count * bar + (count - 1) * gap;
+  for (let i = 0; i < count; i++) {
+    const off = -used / 2 + i * (bar + gap);
+    if (d.dir === 'ew') g.appendChild(svgEl('rect', { x: d.x + off, y: d.y - d.len / 2, width: bar, height: d.len, rx: 1 }));
+    else g.appendChild(svgEl('rect', { x: d.x - d.len / 2, y: d.y + off, width: d.len, height: bar, rx: 1 }));
+  }
+  root.appendChild(g);
+}
+
 export function renderFloor(root, floor, graph) {
   root.innerHTML = '';
   const bounds = computeFloorBounds(floor);
@@ -188,6 +262,10 @@ export function renderFloor(root, floor, graph) {
   defs.appendChild(pattern);
   root.appendChild(defs);
 
+  const decor = floor.decor || [];
+  // Ground-level scenery first (roads, the oval) so the walkways draw on top of it.
+  decor.filter((d) => d.type === 'road' || d.type === 'oval').forEach((d) => drawScenery(root, d));
+
   (floor.labels || []).forEach((lbl) => {
     const text = svgEl('text', { x: lbl.x, y: lbl.y, class: lbl.small ? 'map-note' : 'building-label' });
     text.textContent = lbl.text;
@@ -196,33 +274,41 @@ export function renderFloor(root, floor, graph) {
 
   // Corridors. Blue = wheelchair accessible, red-ish = steps (shown in PWD mode).
   const hallWidth = floor.hallWidth || 24;
-  // Each corridor is a flat-ended bar. Where two bars meet and have the same colour the bar is
+  // Each straight corridor is a flat-ended bar. Where two bars meet and have the same colour the bar is
   // lengthened by half its width so corners and T-junctions fill in square (no round blobs);
   // where the colour changes (blue ramp meets a red step) it stops exactly at the junction.
+  // Bends (curves) are drawn with round ends so they stay smooth.
   const classesAt = {};
-  floor.waypointEdges.forEach(([a, b, pwd]) => {
-    [a, b].forEach((n) => { (classesAt[n] = classesAt[n] || new Set()).add(!!pwd); });
+  const curveNodes = new Set();
+  floor.waypointEdges.forEach(([a, b, pwd, curve]) => {
+    [a, b].forEach((n) => {
+      (classesAt[n] = classesAt[n] || new Set()).add(!!pwd);
+      if (curve) curveNodes.add(n);
+    });
   });
   const half = hallWidth / 2;
-  floor.waypointEdges.forEach(([a, b, pwd]) => {
+  floor.waypointEdges.forEach(([a, b, pwd, curve]) => {
     const pa = graph.nodes[a];
     const pb = graph.nodes[b];
     if (!pa || !pb) return;
     const len = Math.hypot(pb.x - pa.x, pb.y - pa.y) || 1;
     const ux = (pb.x - pa.x) / len;
     const uy = (pb.y - pa.y) / len;
-    const extA = classesAt[a].size === 1 ? half : 0;
-    const extB = classesAt[b].size === 1 ? half : 0;
+    const extA = !curve && !curveNodes.has(a) && classesAt[a].size === 1 ? half : 0;
+    const extB = !curve && !curveNodes.has(b) && classesAt[b].size === 1 ? half : 0;
     root.appendChild(
       svgEl('line', {
         x1: pa.x - ux * extA, y1: pa.y - uy * extA, x2: pb.x + ux * extB, y2: pb.y + uy * extB,
-        class: `hallway-line ${pwd ? 'pwd' : 'no-pwd'}`, 'stroke-width': hallWidth,
+        class: `hallway-line ${pwd ? 'pwd' : 'no-pwd'}${curve ? ' round' : ''}`, 'stroke-width': hallWidth,
       })
     );
   });
 
+  // Zebra crossings where a walkway crosses a road.
+  decor.filter((d) => d.type === 'crosswalk').forEach((d) => drawCrosswalk(root, d));
+
   // Display-only landmarks (the fountain). Not searchable, no graph node.
-  (floor.decor || []).forEach((d) => {
+  decor.filter((d) => !['road', 'oval', 'crosswalk'].includes(d.type)).forEach((d) => {
     const g = svgEl('g', { class: 'decor' });
     const title = svgEl('title');
     title.textContent = d.name || d.type;
