@@ -524,3 +524,86 @@
   color: #fff;
   box-shadow: 0 0 0 2px #f59e0b;
 }
+
+/* ---- Full screen map ---- */
+.map-fs-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 7;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.map-fs-btn .fs-off,
+.fs-floor-bar {
+  display: none;
+}
+
+.map-fs-btn[aria-pressed='true'] .fs-on {
+  display: none;
+}
+
+.map-fs-btn[aria-pressed='true'] .fs-off {
+  display: inline-flex;
+}
+
+.map-fs-btn .fs-on {
+  display: inline-flex;
+}
+
+/* Leave room for the full screen button */
+.leg-banner {
+  right: 62px;
+}
+
+.map-frame.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  width: 100vw;
+  height: 100dvh;
+  max-height: none;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  resize: none;
+}
+
+.map-frame.is-fullscreen #floor-plan-svg {
+  touch-action: none; /* fingers pan and pinch the map, never the page */
+}
+
+.map-frame.is-fullscreen .map-hint {
+  display: none;
+}
+
+.map-frame.is-fullscreen .fs-floor-bar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  transform: translateX(-50%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+html.map-fs,
+html.map-fs body {
+  overflow: hidden;
+}
+
+#floor-plan-svg {
+  touch-action: none;
+}

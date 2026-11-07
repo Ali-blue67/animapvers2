@@ -1,4 +1,4 @@
-import { floorLevels, buildCampusGraph, getAllRooms, getFloorsById } from './campus-data.js';
+import { floorLevels, buildCampusGraph, getAllRooms, getFloorsById, GROUND_ZONES, groundZoneOf } from './campus-data.js';
 import { createIcon } from './icons.js';
 import { renderFloor, computeFloorBounds, setEndArrow } from './floor-renderer.js';
 import { enablePanZoom } from './pan-zoom.js';
@@ -20,6 +20,7 @@ const fromInput = $('from-input');
 const toInput = $('to-input');
 const findRouteBtn = $('find-route-btn');
 const replayBtn = $('replay-btn');
+const slowReplayBtn = $('slow-replay-btn');
 const resetBtn = $('reset-btn');
 const messageEl = $('route-message');
 const legBanner = $('leg-banner');
@@ -131,6 +132,7 @@ function clearActiveRoute() {
   currentLegs = null;
   activeLegIndex = 0;
   replayBtn.disabled = true;
+  slowReplayBtn.disabled = true;
   legBanner.classList.remove('visible');
   syncOverlay();
   legBanner.replaceChildren();
@@ -364,6 +366,7 @@ function setHighlightedRooms(fromId, toId) {
 // 'arrow-up' / 'arrow-down' when this leg ends at a stairs/elevator/ramp, otherwise null.
 function endArrowFor(index) {
   if (!currentLegs || index >= currentLegs.length - 1) return null;
+  if (currentLegs[index + 1].floorId === currentLegs[index].floorId) return 'arrow-narrow-right'; // continues on this floor (next zone)
   const goingUp = floorIndex(currentLegs[index + 1].floorId) > floorIndex(currentLegs[index].floorId);
   return goingUp ? 'arrow-up' : 'arrow-down';
 }
@@ -380,7 +383,12 @@ function drawRoute(nodeIds) {
 
   // Up/down arrow replaces the red dot where the route leaves this floor.
   const arrow = endArrowFor(activeLegIndex);
-  setEndArrow(svgRoot, arrow, end.x, end.y);
+  let angle = 0;
+  if (arrow === 'arrow-narrow-right' && nodeIds.length > 1) {
+    const before = graph.nodes[nodeIds[nodeIds.length - 2]];
+    angle = (Math.atan2(end.y - before.y, end.x - before.x) * 180) / Math.PI;
+  }
+  setEndArrow(svgRoot, arrow, end.x, end.y, angle);
 
   setHighlightedRooms(nodeIds[0], nodeIds[nodeIds.length - 1]);
   fitRouteInView(nodeIds);
@@ -403,7 +411,7 @@ function fitRouteInView(nodeIds) {
   });
 }
 
-function playRouteAnimation() {
+function playRouteAnimation(slow = false) {
   const line = $('route-line');
   if (!line) return;
   const length = line.getTotalLength();
@@ -414,7 +422,7 @@ function playRouteAnimation() {
   line.getBoundingClientRect(); // commit the hidden state before animating
 
   // Longer routes take a little longer to draw.
-  const seconds = Math.min(2.8, Math.max(1.2, length / 900));
+  const seconds = slow ? Math.max(6, Math.min(2.8, Math.max(1.2, length / 900)) * 3) : Math.min(2.8, Math.max(1.2, length / 900));
   line.style.transition = reduceMotion.matches
     ? 'none'
     : `stroke-dashoffset ${seconds}s cubic-bezier(0.2, 0.7, 0.2, 1)`;
@@ -489,7 +497,7 @@ function handleFindRoute() {
     return;
   }
 
-  currentLegs = skipElevatorFloors(splitPathIntoLegs(path, graph.nodeFloor));
+  currentLegs = splitGroundZones(skipElevatorFloors(splitPathIntoLegs(path, graph.nodeFloor)));
   currentLegs.destination = destination;
   currentLegs.origin = fromRoom;
 
@@ -522,6 +530,38 @@ function skipElevatorFloors(legs) {
   return out;
 }
 
+// On the Upper Ground a route is shown one zone at a time (HS complex, the pathway, MTH, CTH),
+// so it is readable without zooming. Each new zone starts on the node where the last one ended.
+function splitGroundZones(legs) {
+  const out = [];
+  legs.forEach((leg) => {
+    if (leg.floorId !== 'ground') { out.push(leg); return; }
+    const zones = leg.nodeIds.map((id) => groundZoneOf(graph.nodes[id].x, graph.nodes[id].y));
+    // Only routes that really go out to MTH / CTH are split. Anything inside the HS complex
+    // (including a start at Gate 2.5) stays one plain step.
+    if (!zones.includes('mth') && !zones.includes('cth')) { out.push(leg); return; }
+    // A zone that lasts for a single point (a junction, a doorway) joins its neighbour instead of being a step.
+    for (let i = 0; i < zones.length; i++) {
+      const alone = (i === 0 || zones[i - 1] !== zones[i]) && (i === zones.length - 1 || zones[i + 1] !== zones[i]);
+      if (alone && zones.length > 1) zones[i] = i > 0 ? zones[i - 1] : zones[i + 1];
+    }
+    const pieces = [];
+    leg.nodeIds.forEach((id, i) => {
+      let piece = pieces[pieces.length - 1];
+      if (!piece || piece.zone !== zones[i]) {
+        piece = { floorId: leg.floorId, zone: zones[i], nodeIds: piece ? [piece.nodeIds[piece.nodeIds.length - 1]] : [] };
+        pieces.push(piece);
+      }
+      piece.nodeIds.push(id);
+    });
+    if (pieces.length > 1) pieces.forEach((p) => { p.zoneLabel = GROUND_ZONES[p.zone]; });
+    out.push(...pieces);
+  });
+  return out;
+}
+
+const legLabel = (leg) => leg.zoneLabel || floorsById[leg.floorId].label;
+
 function goToLeg(index) {
   activeLegIndex = index;
   const leg = currentLegs[index];
@@ -530,6 +570,7 @@ function goToLeg(index) {
   markTargetFloor();
   drawRoute(leg.nodeIds);
   replayBtn.disabled = false;
+  slowReplayBtn.disabled = false;
   updateReplayFloors();
 }
 
@@ -537,7 +578,7 @@ function goToLeg(index) {
 function markTargetFloor() {
   const next = currentLegs && currentLegs[activeLegIndex + 1];
   floorSwitcherEl.querySelectorAll('button').forEach((btn) => {
-    btn.classList.toggle('target-floor', !!next && btn.dataset.floorId === next.floorId);
+    btn.classList.toggle('target-floor', !!next && next.floorId !== currentLegs[activeLegIndex].floorId && btn.dataset.floorId === next.floorId);
   });
 }
 
@@ -552,7 +593,17 @@ function stepText(index) {
   const leg = currentLegs[index];
   if (index === currentLegs.length - 1) return `Walk to ${currentLegs.destination.name}`;
   const kind = connectorKind(leg.nodeIds[leg.nodeIds.length - 1]);
-  const nextFloor = floorsById[currentLegs[index + 1].floorId];
+  const nextLeg = currentLegs[index + 1];
+  if (nextLeg.floorId === leg.floorId) {
+    const place = document.createElement('span');
+    place.className = 'floor-target';
+    place.textContent = nextLeg.zoneLabel;
+    const note = document.createDocumentFragment();
+    const lead = { path: 'Take the ', hs: 'Enter the ' }[nextLeg.zone] || 'Continue to ';
+    note.append(lead, place);
+    return note;
+  }
+  const nextFloor = floorsById[nextLeg.floorId];
   const dir = floorIndex(nextFloor.id) > floorIndex(leg.floorId) ? 'UP' : 'DOWN';
   const target = document.createElement('span');
   target.className = 'floor-target';
@@ -574,7 +625,7 @@ function updateLegBanner() {
 
   const head = document.createElement('p');
   head.className = 'leg-step-count';
-  head.textContent = currentLegs.length > 1 ? `Step ${index + 1} of ${currentLegs.length} · ${floorsById[currentLegs[index].floorId].label}` : floorsById[currentLegs[index].floorId].label;
+  head.textContent = currentLegs.length > 1 ? `Step ${index + 1} of ${currentLegs.length} · ${legLabel(currentLegs[index])}` : floorsById[currentLegs[index].floorId].label;
 
   const text = document.createElement('p');
   text.className = 'leg-step-text';
@@ -618,7 +669,7 @@ function updateReplayFloors() {
   currentLegs.forEach((leg, index) => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = floorsById[leg.floorId].label;
+    button.textContent = legLabel(leg);
     button.setAttribute('aria-pressed', String(index === activeLegIndex));
     button.addEventListener('click', () => goToLeg(index));
     group.appendChild(button);
@@ -641,6 +692,58 @@ findRouteBtn.addEventListener('click', handleFindRoute);
 replayBtn.addEventListener('click', () => {
   if (currentLegs) playRouteAnimation();
 });
+slowReplayBtn.addEventListener('click', () => {
+  if (currentLegs) playRouteAnimation(true);
+});
+
+// ---------- Full screen map ----------
+// Uses the browser's full screen where it exists (desktop, Android) and a full-window layout
+// everywhere else (iPhone), so the map can be pinched and dragged without the page moving.
+const fsBtn = $('fullscreen-btn');
+let mapIsFullscreen = false;
+
+function refreshMapSize() {
+  // The frame changed size: rebuild the view so zoom/pan maths use the new shape.
+  window.setTimeout(() => {
+    if (currentLegs) goToLeg(activeLegIndex);
+    else setActiveFloor(activeFloorId);
+  }, 80);
+}
+
+function syncFsFloorBar() {
+  const idx = floorIndex(activeFloorId);
+  $('fs-floor-label').textContent = floorLevels[idx].label;
+  $('fs-floor-down').disabled = idx <= 0;
+  $('fs-floor-up').disabled = idx >= floorLevels.length - 1;
+}
+
+function setMapFullscreen(on) {
+  if (on === mapIsFullscreen) return;
+  mapIsFullscreen = on;
+  mapFrame.classList.toggle('is-fullscreen', on);
+  document.documentElement.classList.toggle('map-fs', on);
+  fsBtn.setAttribute('aria-pressed', String(on));
+  fsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen map');
+  fsBtn.title = on ? 'Exit full screen' : 'Full screen';
+  if (on) {
+    syncFsFloorBar();
+    if (mapFrame.requestFullscreen) mapFrame.requestFullscreen().catch(() => {});
+  } else if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+  refreshMapSize();
+}
+
+fsBtn.addEventListener('click', () => setMapFullscreen(!mapIsFullscreen));
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && mapIsFullscreen) setMapFullscreen(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && mapIsFullscreen) setMapFullscreen(false);
+});
+$('fs-floor-down').addEventListener('click', () => stepFloor(-1));
+$('fs-floor-up').addEventListener('click', () => stepFloor(1));
+window.addEventListener('animap:floor-drawn', () => { if (mapIsFullscreen) syncFsFloorBar(); });
 resetBtn.addEventListener('click', handleReset);
 $('pwd-dialog-ok').addEventListener('click', () => pwdDialog.close());
 

@@ -340,7 +340,7 @@ export function renderFloor(root, floor, graph) {
 }
 
 // Swaps the red end dot for an up/down arrow ('arrow-up' | 'arrow-down'), or back to the dot (null).
-export function setEndArrow(root, iconName, x, y) {
+export function setEndArrow(root, iconName, x, y, angle = 0) {
   const arrow = root.querySelector('#end-arrow');
   const dot = root.querySelector('#end-marker');
   if (!arrow || !dot) return;
@@ -352,7 +352,7 @@ export function setEndArrow(root, iconName, x, y) {
   const holder = arrow.querySelector('#end-arrow-icon');
   holder.replaceChildren();
   appendIconShapes(holder, iconName);
-  holder.setAttribute('transform', `scale(0.8) translate(-12 -12)`);
+  holder.setAttribute('transform', `rotate(${angle}) scale(0.8) translate(-12 -12)`);
   arrow.setAttribute('transform', `translate(${x} ${y})`);
   arrow.classList.add('visible');
   dot.classList.add('hidden');

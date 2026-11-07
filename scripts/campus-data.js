@@ -14,7 +14,7 @@
 // blue = CSS labs + TESDA, orange = food / science / computer labs, yellow = offices & services,
 // green = classrooms, purple = faculty offices, gray = everything else (stock rooms, storage, housekeeper...).
 const CAT_GRAY = /stock ?room|storage|housekeeper/i;
-const CAT_BLUE = /css lab|tesda/i;
+const CAT_BLUE = /css lab|tesda|bkp room/i;
 const CAT_ORANGE = /food lab|science lab|computer lab/i;
 const CAT_YELLOW =
   /registrar|principal|coordinator|student life|lmo|student council|viridescent|comelec|la estrella|resilience|animo|swc|conference|prefect|clinic|bookstore|association/i;
@@ -436,6 +436,24 @@ const floor4 = buildFloor({
   ],
   labels: [{ text: 'HS Building 2', x: 565, y: 185 }, { text: 'HS Building 1', x: 553, y: 608 }],
 });
+
+// ---------- Upper Ground "zones" ----------
+// The Upper Ground is huge, so a route there is shown one zone at a time (like floors):
+// the HS complex, the walkway out to the road, Mariano Trias Hall, then Candido Tirona Hall.
+export const GROUND_ZONES = {
+  hs: 'HS Complex',
+  path: 'Pathway to MTH & CTH',
+  mth: 'Mariano Trias Hall (MTH)',
+  cth: 'Candido Tirona Hall (CTH)',
+};
+export function groundZoneOf(x, y) {
+  if (y > -530) {
+    if (y < 700) return x < 1700 ? 'hs' : 'path';
+    return x > 1175 || (Math.abs(x - 1172) < 2 && Math.abs(y - 838) < 2) ? 'path' : 'hs'; // the Gate 2.5 junction starts the walkway
+  }
+  if (y > -1395) return 'mth';
+  return 'cth';
+}
 
 export const floors = {
   'lower-ground': lowerGround,

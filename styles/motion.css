@@ -1,0 +1,224 @@
+/* ======== Smooth motion: hover, press and entrance animations ========
+   Loaded last on every page so it layers on top of the base styles.
+   Everything is switched off for people who ask their device for reduced motion. */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --lift-shadow: 0 8px 20px rgba(12, 60, 40, 0.16);
+}
+
+/* ---- Buttons ---- */
+.btn,
+.icon-btn,
+.segmented button,
+.pref-btn,
+.sidebar-tab,
+.brand,
+.brand-mark,
+.legend li,
+.card,
+.hero-plan,
+.model-tool {
+  transition:
+    transform 0.22s var(--ease-out),
+    box-shadow 0.22s var(--ease-out),
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    filter 0.22s ease;
+}
+
+.btn:hover:not(:disabled),
+.icon-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--lift-shadow);
+}
+
+.btn:active:not(:disabled),
+.icon-btn:active:not(:disabled),
+.segmented button:active,
+.pref-btn:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: none;
+  transition-duration: 0.08s;
+}
+
+.btn .icon,
+.icon-btn .icon {
+  transition: transform 0.3s var(--ease-spring);
+}
+
+.btn:hover:not(:disabled) .icon,
+.icon-btn:hover:not(:disabled) .icon {
+  transform: scale(1.14) rotate(-4deg);
+}
+
+#replay-btn:hover:not(:disabled) .icon,
+#slow-replay-btn:hover:not(:disabled) .icon {
+  transform: rotate(-200deg);
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06) saturate(1.1);
+}
+
+/* Segmented controls (floor picker, zoom, replay by floor) */
+.segmented button:hover:not([aria-pressed='true']) {
+  transform: translateY(-1px);
+}
+
+.segmented button[aria-pressed='true'] {
+  animation: pop 0.32s var(--ease-spring);
+}
+
+/* ---- Tabs in the side menu ---- */
+.sidebar-tab:hover:not([aria-current='page']) {
+  transform: translateX(4px);
+}
+
+.sidebar-tab .icon {
+  transition: transform 0.3s var(--ease-spring);
+}
+
+.sidebar-tab:hover .icon {
+  transform: scale(1.18) rotate(-6deg);
+}
+
+.sidebar-tab[aria-current='page']::before {
+  animation: grow-bar 0.35s var(--ease-out);
+}
+
+/* ---- Brand / header ---- */
+.brand:hover {
+  transform: translateY(-1px);
+}
+
+.brand:hover .brand-mark {
+  transform: rotate(-10deg) scale(1.1);
+  box-shadow: 0 6px 14px rgba(12, 60, 40, 0.25);
+}
+
+/* ---- Cards, legend, search results ---- */
+.card:hover,
+.hero-plan:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(12, 60, 40, 0.14);
+}
+
+.legend li:hover {
+  transform: translateY(-2px);
+}
+
+.suggestions li,
+.search-list li,
+[role='listbox'] li {
+  transition: background-color 0.18s ease, padding-left 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+
+[role='listbox'] li:hover:not([aria-disabled='true']),
+[role='listbox'] li[aria-selected='true'] {
+  padding-left: 18px;
+}
+
+/* ---- Fields ---- */
+input[type='text'],
+input[type='search'],
+input[type='password'],
+textarea {
+  transition: border-color 0.2s ease, box-shadow 0.25s var(--ease-out), background-color 0.2s ease;
+}
+
+input[type='text']:focus,
+input[type='search']:focus,
+input[type='password']:focus,
+textarea:focus {
+  box-shadow: 0 0 0 4px rgba(34, 140, 90, 0.18);
+}
+
+/* ---- Pages and panels fade in ---- */
+.tab-panel.active {
+  animation: panel-in 0.4s var(--ease-out);
+}
+
+.leg-banner.visible {
+  animation: banner-in 0.4s var(--ease-out);
+}
+
+.route-message:not(:empty) {
+  animation: panel-in 0.35s var(--ease-out);
+}
+
+.hero > *,
+.hero-figure {
+  animation: panel-in 0.7s var(--ease-out) both;
+}
+
+.hero > :nth-child(2) { animation-delay: 0.08s; }
+.hero > :nth-child(3) { animation-delay: 0.16s; }
+.hero > :nth-child(4) { animation-delay: 0.24s; }
+
+/* ---- Rooms on the map react to the pointer ---- */
+.room:not(.connector) .room-rect {
+  transition: filter 0.2s ease, stroke-width 0.2s ease;
+}
+
+.room:not(.connector) {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.25s var(--ease-spring);
+  cursor: pointer;
+}
+
+.room:not(.connector):hover {
+  transform: scale(1.035);
+}
+
+.room:not(.connector):hover .room-rect {
+  filter: brightness(0.97) drop-shadow(0 3px 5px rgba(12, 60, 40, 0.3));
+  stroke-width: 2.4;
+}
+
+g.connector {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.25s var(--ease-spring);
+}
+
+g.connector:hover {
+  transform: scale(1.18);
+}
+
+/* ---- Full screen map controls ---- */
+.map-fs-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+@keyframes grow-bar {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.001ms !important;
+  }
+}
