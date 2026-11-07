@@ -36,7 +36,7 @@ let currentLegs = null;
 let activeLegIndex = 0;
 let activeFloorId = floorLevels[0].id;
 let panZoom = null; // controller for the floor currently showing pan/zoom
-let verticalPreference = 'none'; // 'none' | 'stairs' | 'elevator' | 'pwd'
+let verticalPreference = 'stairs'; // 'stairs' | 'elevator' | 'pwd'
 
 const floorIndex = (floorId) => floorLevels.findIndex((l) => l.id === floorId);
 
