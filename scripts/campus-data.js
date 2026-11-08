@@ -15,7 +15,7 @@
 // green = classrooms, purple = faculty offices, gray = everything else (stock rooms, storage, housekeeper...).
 const CAT_GRAY = /stock ?room|storage|housekeeper/i;
 const CAT_BLUE = /css lab|tesda|bkp room/i;
-const CAT_ORANGE = /food lab|science lab|computer lab/i;
+const CAT_ORANGE = /food lab|science lab|computer lab|robotics lab/i;
 const CAT_YELLOW =
   /registrar|principal|coordinator|student life|lmo|student council|viridescent|comelec|la estrella|resilience|animo|swc|conference|prefect|clinic|bookstore|association/i;
 export function categoryFor(name) {
@@ -418,21 +418,21 @@ const floor4 = buildFloor({
     { pts: [[961, 201], [961, 244]] },
   ],
   items: [
-    S('stairs-b2-1', 190, 238), F('femalebath-b2', 551, 232, 'Building 2'), S('stairs-b2-2', 590, 232), S('stairs-b2-3', 901, 231),
-    M('malebath-b2', 154, 391, 'Building 2'),
-    S('stairs-b1-1', 183, 543), M('malebath-b1', 218, 543, 'Building 1'), F('femalebath-b1', 553, 552, 'Building 1'),
-    S('stairs-b1-2', 584, 552), S('stairs-b1-3', 891, 548), E(76, 572),
-    R('stock-room-5', 'Stock Room 5', '', 215, 269, 219, 308),
-    R('scilab4', 'Science Lab 4', 'LSH 248 - 249', 269, 401, 219, 307),
-    R('scilab3', 'Science Lab 3', 'LSH 247 - 248', 401, 521, 219, 307),
-    R('lsh246', 'LSH 246', '', 616, 683, 213, 302),
-    R('mmh', 'Mutien Marie Hall (MMH)', '', 688, 875, 213, 302),
-    R('vip-room', 'VIP Room', '', 930, 992, 244, 317, { door: 'top' }),
-    R('scilab1', 'Science Laboratory 1', '', 247, 359, 476, 565), R('scilab2', 'Science Laboratory 2', '', 359, 468, 476, 565),
-    R('scistock', 'Science Laboratory Stockroom', '', 468, 532, 476, 565),
-    R('lsh145', 'LSH 145', '', 606, 672, 480, 569), R('lsh146', 'LSH 146', '', 672, 736, 480, 569),
-    R('lsh147', 'LSH 147', '', 736, 801, 480, 569), R('lsh148', 'LSH 148', '', 801, 865, 480, 569),
-    R('lsh149', 'La Estrella Verde Office', 'LSH 149', 916, 1007, 482, 568),
+    S('stairs-b2-1', 185, 238), F('femalebath-b2', 550, 233, 'Building 2'), S('stairs-b2-2', 588, 233), S('stairs-b2-3', 901, 233),
+    M('malebath-b2', 149, 393, 'Building 2'),
+    S('stairs-b1-1', 178, 543), M('malebath-b1', 214, 543, 'Building 1'), F('femalebath-b1', 552, 553, 'Building 1'),
+    S('stairs-b1-2', 582, 553), S('stairs-b1-3', 891, 550), E(70, 575),
+    R('stock-room-5', 'Stock Room 5', '', 211, 265, 220, 307),
+    R('scilab4', 'Science Lab 4', 'LSH 248 - 249', 265, 359, 220, 307),
+    R('scilab3', 'Science Lab 3', 'LSH 247 - 248', 359, 448, 220, 307),
+    R('lsh246', 'Robotics Laboratory', 'LSH 246', 448, 513, 220, 307),
+    R('mmh', 'Mutien Marie Hall (MMH)', '', 619, 874, 215, 301),
+    R('vip-room', 'VIP Room', '', 931, 992, 246, 316, { door: 'top' }),
+    R('scilab1', 'Science Laboratory 1', '', 243, 355, 478, 565), R('scilab2', 'Science Laboratory 2', '', 357, 464, 478, 565),
+    R('scistock', 'Science Laboratory Stockroom', '', 466, 529, 478, 565),
+    R('lsh145', 'LSH 145', '', 605, 670, 482, 569), R('lsh146', 'LSH 146', '', 672, 735, 482, 569),
+    R('lsh147', 'LSH 147', '', 737, 800, 482, 569), R('lsh148', 'LSH 148', '', 801, 863, 482, 569),
+    R('lsh149', 'La Estrella Verde Office', 'LSH 149', 917, 1007, 484, 568),
   ],
   labels: [{ text: 'HS Building 2', x: 565, y: 185 }, { text: 'HS Building 1', x: 553, y: 608 }],
 });
