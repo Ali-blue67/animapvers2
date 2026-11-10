@@ -311,3 +311,45 @@ body.is-admin section.admin-only:not([hidden]) {
 #editor-legend-wrap[hidden] {
   display: none;
 }
+
+
+/* ======== Admin mode: the whole site changes colour so it is obvious ======== */
+body.is-admin {
+  --green-950: #1e1b4b;
+  --green-900: #312e81;
+  --green-800: #3730a3;
+  --green-700: #4f46e5;
+  --green-600: #6366f1;
+  --green-200: #c7d2fe;
+  --green-100: #e0e7ff;
+  --green-50: #eef2ff;
+  --bg: #f4f4fc;
+  --line: #dcdcf0;
+  --line-strong: #c3c3e4;
+}
+
+body.is-admin .site-header {
+  box-shadow: inset 0 -4px 0 #f59e0b;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #3b2300;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .admin-badge {
+    padding: 3px 8px;
+    font-size: 0.6875rem;
+  }
+}

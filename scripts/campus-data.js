@@ -70,7 +70,7 @@ function buildFloor(spec) {
   corridors.forEach((c) => {
     const pts = c.pts.map(([x, y]) => P(x, y));
     pts.forEach((p) => verts.push(p));
-    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, curve: !!c.curve, w: c.w || 1, splits: [] });
+    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, pwdOnly: !!c.pwdOnly, curve: !!c.curve, w: c.w || 1, splits: [] });
   });
 
   // Place every item and find the corridor point it plugs into.
@@ -125,10 +125,10 @@ function buildFloor(spec) {
       if (keys[keys.length - 1] !== key) keys.push(key);
     });
     for (let i = 0; i < keys.length - 1; i++) {
-      const pair = [keys[i], keys[i + 1]].sort().join('|') + (s.pwd ? 'p' : 'n');
+      const pair = [keys[i], keys[i + 1]].sort().join('|') + (s.pwd ? 'p' : 'n') + (s.pwdOnly ? 'o' : '');
       if (seen.has(pair)) continue;
       seen.add(pair);
-      waypointEdges.push([keys[i], keys[i + 1], s.pwd, s.curve, s.w]);
+      waypointEdges.push([keys[i], keys[i + 1], s.pwd, s.curve, s.w, s.pwdOnly]);
     }
   });
 
@@ -266,10 +266,15 @@ const upperGround = buildFloor({
     { pts: mth.pts([[436, 141], [453, 141], ...arc(453, 131, 10, 90, 0, 3), [463, 125], ...arc(479, 125, 16, 180, 270, 4), [554, 109]]), w: 1.8, curve: true },
     // Candido Tirona Hall
     { pts: cth.pts([[420, 16], [420, 657]]) },
-    { pts: cth.pts([[479, 16], [478.5, 650], [478.5, 716], ...arc(495.5, 716, 17, 180, 90, 4), [621, 733]]), curve: true },
+    { pts: cth.pts([[479, 16], [478.5, 650]]) },
+    // the curved side path from the road: wheelchair users take it, everyone else walks straight in
+    { pts: cth.pts([[478.5, 650], [478.5, 716], ...arc(495.5, 716, 17, 180, 90, 4), [621, 733]]), curve: true, pwdOnly: true },
     { pts: cth.pts([[420, 614], [479, 614]]) },
     { pts: cth.pts([[420, 327], [466, 327], ...arc(466, 340, 13, 270, 360, 3), [479, 346]]), pwd: false, curve: true },
-    { pts: cth.pts([[420, 656], [478.5, 656.5], [623, 657]]) },
+    { pts: cth.pts([[420, 656], [478.5, 656.5]]) },
+    // short cut at the bottom: walkers go up the hallway beside CTH 104/105 instead
+    { pts: cth.pts([[478.5, 656.5], [621, 657]]), pwdOnly: true },
+    { pts: cth.pts([[621, 657], [623, 657]]) },
     { pts: cth.pts([[479, 397], [623, 397]]) },
     { pts: cth.pts([[623, 334], [623, 657]]) },
     { pts: cth.pts([[621, 657], [621, 733]]), pwd: false },
@@ -496,14 +501,14 @@ function buildFloorGraph(floor) {
   const nodeFloor = {};
 
   const addNode = (id, x, y) => { nodes[id] = { x, y }; nodeFloor[id] = floor.id; };
-  const addEdge = (a, b, weight, pwd) => {
+  const addEdge = (a, b, weight, pwd, pwdOnly) => {
     if (!nodes[a] || !nodes[b]) return;
-    (edges[a] = edges[a] || []).push({ to: b, weight, pwd });
-    (edges[b] = edges[b] || []).push({ to: a, weight, pwd });
+    (edges[a] = edges[a] || []).push({ to: b, weight, pwd, pwdOnly });
+    (edges[b] = edges[b] || []).push({ to: a, weight, pwd, pwdOnly });
   };
 
   floor.waypoints.forEach((wp) => addNode(wp.id, wp.x, wp.y));
-  floor.waypointEdges.forEach(([a, b, pwd, , w]) => addEdge(a, b, euclidean(nodes[a], nodes[b]) * (w || 1), pwd));
+  floor.waypointEdges.forEach(([a, b, pwd, , w, pwdOnly]) => addEdge(a, b, euclidean(nodes[a], nodes[b]) * (w || 1), pwd, pwdOnly));
   [...floor.rooms, ...floor.connectors].forEach((r) => {
     addNode(r.id, r.nodeX, r.nodeY);
     if (nodes[r.connectsTo]) addEdge(r.id, r.connectsTo, euclidean(nodes[r.id], nodes[r.connectsTo]), true);

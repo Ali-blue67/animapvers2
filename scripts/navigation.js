@@ -4,6 +4,7 @@ import { renderFloor, computeFloorBounds, setEndArrow } from './floor-renderer.j
 import { enablePanZoom } from './pan-zoom.js';
 import { findShortestPath, runDijkstra, reconstructPath, splitPathIntoLegs } from './pathfinding.js';
 import { initRoomEditor } from './admin.js';
+import { state } from './api.js';
 
 const graph = buildCampusGraph();
 let allRooms = getAllRooms();
@@ -20,7 +21,6 @@ const fromInput = $('from-input');
 const toInput = $('to-input');
 const findRouteBtn = $('find-route-btn');
 const replayBtn = $('replay-btn');
-const slowReplayBtn = $('slow-replay-btn');
 const resetBtn = $('reset-btn');
 const messageEl = $('route-message');
 const legBanner = $('leg-banner');
@@ -34,6 +34,8 @@ let fromRoom = null;
 let toRoom = null;
 let currentLegs = null;
 let activeLegIndex = 0;
+let legCollapsed = false; // the steps card can be folded up to give the map more room
+let routeLocked = false; // the last step has been shown: the next person has to press Reset first
 const HOME_FLOOR = 'ground'; // Upper Ground is where everyone starts
 let activeFloorId = HOME_FLOOR;
 let panZoom = null; // controller for the floor currently showing pan/zoom
@@ -46,6 +48,7 @@ const floorIndex = (floorId) => floorLevels.findIndex((l) => l.id === floorId);
 // banned, so a route still exists even if only the other one is available
 // (for example the HS Cafeteria 2nd floor, which only has stairs).
 function edgeWeight(edge) {
+  if (verticalPreference !== 'pwd' && edge.pwdOnly) return edge.weight * 1000; // paths made for wheelchair users
   if (verticalPreference === 'pwd' && edge.pwd === false) return edge.weight * 1000;
   if (edge.kind === 'stairs' && verticalPreference === 'elevator') return edge.weight * 8;
   if (edge.kind === 'elevator' && verticalPreference === 'stairs') return edge.weight * 8;
@@ -82,7 +85,7 @@ floorLevels.forEach((level) => {
   button.dataset.floorId = level.id;
   button.setAttribute('aria-pressed', 'false');
   button.addEventListener('click', () => {
-    clearActiveRoute();
+    if (!routeLocked) clearActiveRoute();
     setActiveFloor(level.id);
   });
   floorSwitcherEl.appendChild(button);
@@ -122,18 +125,24 @@ function setActiveFloor(floorId) {
   window.dispatchEvent(new CustomEvent('animap:floor-drawn'));
 }
 
-// Keeps the map clear of the floating instruction card: the map starts below it.
+// Keeps the map clear of the floating steps card: on a wide screen the card takes a column on the left,
+// otherwise (or while it is folded up) the map simply starts below it.
+const wideQuery = window.matchMedia('(min-width: 900px)');
 function syncOverlay() {
   const show = legBanner.classList.contains('visible');
+  const side = show && wideQuery.matches && !legCollapsed;
   mapFrame.classList.toggle('has-overlay', show);
-  mapFrame.style.setProperty('--overlay-h', show ? `${legBanner.offsetHeight + 20}px` : '0px');
+  mapFrame.classList.toggle('overlay-side', side);
+  mapFrame.style.setProperty('--overlay-h', show && !side ? `${legBanner.offsetHeight + 20}px` : '0px');
+  mapFrame.style.setProperty('--overlay-w', side ? `${legBanner.offsetWidth + 20}px` : '0px');
 }
+window.addEventListener('resize', () => { if (currentLegs) syncOverlay(); });
 
 function clearActiveRoute() {
   currentLegs = null;
+  setRouteLock(false);
   activeLegIndex = 0;
   replayBtn.disabled = true;
-  slowReplayBtn.disabled = true;
   legBanner.classList.remove('visible');
   syncOverlay();
   legBanner.replaceChildren();
@@ -145,7 +154,7 @@ function clearActiveRoute() {
 function stepFloor(direction) {
   const next = floorLevels[floorIndex(activeFloorId) + direction];
   if (!next) return;
-  clearActiveRoute();
+  if (!routeLocked) clearActiveRoute();
   setActiveFloor(next.id);
 }
 
@@ -412,7 +421,7 @@ function fitRouteInView(nodeIds) {
   });
 }
 
-function playRouteAnimation(slow = false) {
+function playRouteAnimation() {
   const line = $('route-line');
   if (!line) return;
   const length = line.getTotalLength();
@@ -422,8 +431,8 @@ function playRouteAnimation(slow = false) {
   line.style.strokeDashoffset = `${length}`;
   line.getBoundingClientRect(); // commit the hidden state before animating
 
-  // Longer routes take a little longer to draw.
-  const seconds = slow ? Math.max(6, Math.min(2.8, Math.max(1.2, length / 900)) * 3) : Math.min(2.8, Math.max(1.2, length / 900));
+  // Drawn slowly and calmly so it is easy to follow; longer routes take a little longer.
+  const seconds = Math.max(6, Math.min(2.8, Math.max(1.2, length / 900)) * 3);
   line.style.transition = reduceMotion.matches
     ? 'none'
     : `stroke-dashoffset ${seconds}s cubic-bezier(0.2, 0.7, 0.2, 1)`;
@@ -501,6 +510,7 @@ function handleFindRoute() {
   currentLegs = splitGroundZones(skipElevatorFloors(splitPathIntoLegs(path, graph.nodeFloor)));
   currentLegs.destination = destination;
   currentLegs.origin = fromRoom;
+  legCollapsed = false;
 
   const crossesFloors = currentLegs.length > 1;
   showMessage(
@@ -570,8 +580,8 @@ function goToLeg(index) {
   setActiveFloor(leg.floorId);
   markTargetFloor();
   drawRoute(leg.nodeIds);
+  if (index === currentLegs.length - 1) setRouteLock(true);
   replayBtn.disabled = false;
-  slowReplayBtn.disabled = false;
   updateReplayFloors();
 }
 
@@ -614,7 +624,8 @@ function stepText(index) {
   return frag;
 }
 
-// The frosted card on top of the map: what to do on THIS floor.
+// The steps card: every step of the route in one list. Finished steps stay (ticked), the current one is
+// highlighted, and any step can be tapped to jump back to it.
 function updateLegBanner() {
   if (!currentLegs) {
     legBanner.classList.remove('visible');
@@ -622,32 +633,76 @@ function updateLegBanner() {
     return;
   }
   const index = activeLegIndex;
-  const isLast = index === currentLegs.length - 1;
+  const total = currentLegs.length;
+  const isLast = index === total - 1;
 
-  const head = document.createElement('p');
-  head.className = 'leg-step-count';
-  head.textContent = currentLegs.length > 1 ? `Step ${index + 1} of ${currentLegs.length} · ${legLabel(currentLegs[index])}` : floorsById[currentLegs[index].floorId].label;
+  const head = document.createElement('div');
+  head.className = 'leg-head';
+  const count = document.createElement('p');
+  count.className = 'leg-step-count';
+  count.textContent = total > 1 ? `Your route · Step ${index + 1} of ${total}` : 'Your route';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'leg-toggle';
+  toggle.setAttribute('aria-expanded', String(!legCollapsed));
+  toggle.setAttribute('aria-label', legCollapsed ? 'Show all steps' : 'Show only the current step');
+  toggle.title = toggle.getAttribute('aria-label');
+  toggle.append(createIcon('chevron-down', { size: 18 }));
+  toggle.addEventListener('click', () => {
+    legCollapsed = !legCollapsed;
+    updateLegBanner();
+  });
+  head.append(count, toggle);
 
-  const text = document.createElement('p');
-  text.className = 'leg-step-text';
-  const arrow = endArrowFor(index);
-  if (arrow) text.append(createIcon(arrow, { size: 22, className: 'leg-arrow' }));
-  text.append(stepText(index));
-
-  const body = document.createElement('div');
-  body.append(head, text);
-  legBanner.replaceChildren(body);
-
-  if (!isLast) {
-    const nextFloor = floorsById[currentLegs[index + 1].floorId];
+  const list = document.createElement('ol');
+  list.className = 'leg-steps';
+  currentLegs.forEach((leg, i) => {
+    const item = document.createElement('li');
+    item.className = i < index ? 'done' : i === index ? 'current' : '';
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'btn btn-primary';
-    button.append(`Continue`, createIcon('arrow-right', { size: 18 }));
-    button.addEventListener('click', () => goToLeg(index + 1));
-    legBanner.append(button);
+    button.className = 'leg-step';
+    if (i === index) button.setAttribute('aria-current', 'step');
+    const mark = document.createElement('span');
+    mark.className = 'step-mark';
+    if (i < index) mark.append(createIcon('check', { size: 14 }));
+    else mark.textContent = String(i + 1);
+    const copy = document.createElement('span');
+    copy.className = 'step-copy';
+    const text = document.createElement('span');
+    text.className = 'step-text';
+    const arrow = i === index ? endArrowFor(i) : null;
+    if (arrow) text.append(createIcon(arrow, { size: 16, className: 'step-arrow' }));
+    text.append(stepText(i));
+    const place = document.createElement('span');
+    place.className = 'step-place';
+    place.textContent = legLabel(leg);
+    copy.append(text, place);
+    button.append(mark, copy);
+    button.addEventListener('click', () => goToLeg(i));
+    item.appendChild(button);
+    list.appendChild(item);
+  });
+
+  const parts = [head, list];
+  if (!isLast) {
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'btn btn-primary leg-next';
+    next.append('Continue', createIcon('arrow-right', { size: 18 }));
+    next.addEventListener('click', () => goToLeg(index + 1));
+    parts.push(next);
+  } else {
+    const done = document.createElement('p');
+    done.className = 'leg-done';
+    done.textContent = 'You have arrived. Press Reset to plan another route.';
+    parts.push(done);
   }
+  legBanner.classList.toggle('collapsed', legCollapsed);
+  legBanner.replaceChildren(...parts);
   legBanner.classList.add('visible');
+  const currentEl = list.querySelector('.current');
+  if (currentEl && !legCollapsed) list.scrollTop = Math.max(0, currentEl.offsetTop - 8);
   syncOverlay();
 }
 
@@ -689,12 +744,50 @@ function handleReset() {
   setActiveFloor(activeFloorId);
 }
 
+// ---------- After the last step: the next person must press Reset ----------
+const lockDialog = $('lock-dialog');
+const directionsCard = document.querySelector('.directions');
+
+function setRouteLock(on) {
+  routeLocked = on;
+  resetBtn.classList.toggle('emphasis', on);
+  fromInput.readOnly = on;
+  toInput.readOnly = on;
+  directionsCard.classList.toggle('is-locked', on);
+}
+
+function nudgeReset() {
+  if (lockDialog && typeof lockDialog.showModal === 'function' && !lockDialog.open) lockDialog.showModal();
+  resetBtn.classList.remove('nudge');
+  void resetBtn.offsetWidth; // restart the animation
+  resetBtn.classList.add('nudge');
+}
+
+// Any attempt to change the rooms or preferences while locked gets the warning instead.
+['pointerdown', 'click', 'focusin', 'keydown'].forEach((type) => {
+  directionsCard.addEventListener(type, (event) => {
+    if (!routeLocked) return;
+    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return;
+    if (resetBtn.contains(event.target)) return;
+    if (event.target.closest('.search-field, #vertical-pref, #find-route-btn')) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.target.blur) event.target.blur();
+      nudgeReset();
+    }
+  }, true);
+});
+findRouteBtn.addEventListener('click', (event) => {
+  if (!routeLocked) return;
+  event.stopImmediatePropagation();
+  nudgeReset();
+}, true);
+$('lock-dialog-ok').addEventListener('click', () => lockDialog.close());
+resetBtn.addEventListener('animationend', () => resetBtn.classList.remove('nudge'));
+
 findRouteBtn.addEventListener('click', handleFindRoute);
 replayBtn.addEventListener('click', () => {
   if (currentLegs) playRouteAnimation();
-});
-slowReplayBtn.addEventListener('click', () => {
-  if (currentLegs) playRouteAnimation(true);
 });
 
 // ---------- Full screen map ----------
@@ -777,7 +870,14 @@ const legendBox = document.getElementById('legend-box');
 if (legendBox) legendBox.open = window.matchMedia('(min-width: 701px)').matches;
 
 // ---------- Admin changes (renames / unavailable rooms / colours) ----------
+let wasAdmin = state.admin;
 window.addEventListener('animap:data', () => {
+  if (state.admin !== wasAdmin) { // logging in or out starts from a clean slate
+    wasAdmin = state.admin;
+    if (lockDialog.open) lockDialog.close();
+    handleReset();
+    setActiveFloor(HOME_FLOOR);
+  }
   renderLegend();
   allRooms = getAllRooms();
   const fresh = (room) => (room && !room.special ? allRooms.find((r) => r.id === room.id) || room : room);

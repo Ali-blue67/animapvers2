@@ -617,8 +617,7 @@ html.map-fs body {
   justify-content: center;
 }
 
-#replay-btn:disabled,
-#slow-replay-btn:disabled {
+#replay-btn:disabled {
   display: none;
 }
 
@@ -682,4 +681,272 @@ html.map-fs body {
 /* "Between floors" sits quietly in the card, not in a tinted bar */
 .directions .pref-row {
   background: none;
+}
+
+
+/* ======== Steps card: the whole route in one place ======== */
+.leg-banner {
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  top: 10px;
+  left: 10px;
+  right: 62px;
+  max-height: calc(100% - 20px);
+  padding: 12px;
+}
+
+.leg-banner.visible {
+  display: flex;
+}
+
+@media (min-width: 900px) {
+  .leg-banner {
+    right: auto;
+    width: 300px;
+  }
+
+  .map-frame.overlay-side #floor-plan-svg {
+    margin-top: 0;
+    margin-left: var(--overlay-w, 0px);
+    width: calc(100% - var(--overlay-w, 0px));
+    height: 100%;
+  }
+
+  .map-frame.overlay-side .map-hint {
+    left: calc(var(--overlay-w, 0px) + 12px);
+  }
+}
+
+.leg-banner .leg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.leg-banner .leg-step-count {
+  margin: 0;
+}
+
+.leg-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(11, 93, 59, 0.08);
+  color: var(--green-800);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease), transform var(--dur) var(--ease);
+}
+
+.leg-toggle:hover {
+  background: rgba(11, 93, 59, 0.16);
+}
+
+.leg-banner.collapsed .leg-toggle {
+  transform: rotate(180deg);
+}
+
+.leg-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: 168px;
+}
+
+@media (min-width: 900px) {
+  .leg-steps {
+    max-height: 300px;
+  }
+}
+
+.leg-banner.collapsed .leg-steps li:not(.current) {
+  display: none;
+}
+
+.leg-steps li {
+  border-radius: var(--r-md);
+}
+
+.leg-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.leg-step:hover {
+  background: rgba(11, 93, 59, 0.07);
+}
+
+.leg-steps li.current .leg-step {
+  background: var(--green-100);
+  box-shadow: inset 0 0 0 1.5px var(--green-700);
+}
+
+.step-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.leg-steps li.current .step-mark {
+  background: var(--green-800);
+  box-shadow: none;
+  color: #fff;
+}
+
+.leg-steps li.done .step-mark {
+  background: var(--green-700);
+  box-shadow: none;
+  color: #fff;
+}
+
+.step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.step-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #0b1f17;
+}
+
+.leg-steps li.done .step-text {
+  color: var(--muted);
+}
+
+.step-arrow {
+  flex-shrink: 0;
+  color: var(--route);
+}
+
+.step-place {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.leg-banner .leg-next {
+  width: 100%;
+  min-height: 40px;
+}
+
+.leg-done {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--green-50);
+  color: var(--green-900);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ======== Reset: calmly stands out once the route is finished ======== */
+#reset-btn {
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+#reset-btn.emphasis {
+  background: var(--green-800);
+  color: #fff;
+  animation: reset-glow 2.4s ease-in-out infinite;
+}
+
+#reset-btn.nudge {
+  animation: reset-nudge 0.7s var(--ease) 1;
+}
+
+@keyframes reset-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(15, 122, 77, 0.0); }
+  50% { box-shadow: 0 0 0 6px rgba(15, 122, 77, 0.22); }
+}
+
+@keyframes reset-nudge {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(15, 122, 77, 0.45); }
+  40% { transform: scale(1.06); box-shadow: 0 0 0 9px rgba(15, 122, 77, 0.25); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(15, 122, 77, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #reset-btn.emphasis,
+  #reset-btn.nudge {
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(15, 122, 77, 0.25);
+  }
+}
+
+.directions.is-locked .search-field,
+.directions.is-locked #vertical-pref,
+.directions.is-locked #find-route-btn {
+  opacity: 0.55;
+}
+
+.directions.is-locked input {
+  cursor: not-allowed;
+}
+
+/* Steps list: plain readable lines, the floor name is just bold */
+.leg-steps {
+  position: relative;
+}
+
+.leg-banner .step-text {
+  display: block;
+}
+
+.leg-banner .step-arrow {
+  display: inline;
+  margin-right: 6px;
+  vertical-align: -3px;
+}
+
+.leg-steps .floor-target {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--green-900);
+  font: inherit;
+  font-weight: 800;
+}
+
+.leg-steps li.done .floor-target {
+  color: inherit;
 }

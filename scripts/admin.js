@@ -59,7 +59,7 @@ function renderHeader(slot) {
   if (state.admin) {
     const out = el('button', { type: 'button', className: 'btn btn-secondary btn-sm header-btn' }, createIcon('logout', { size: 18 }), 'Sign out');
     out.addEventListener('click', async () => { await logout(); location.reload(); });
-    slot.append(el('span', { className: 'admin-badge' }, createIcon('lock', { size: 14 }), 'Admin'), out);
+    slot.append(el('span', { className: 'admin-badge' }, createIcon('lock', { size: 14 }), 'Admin mode'), out);
   } else {
     const btn = el('button', { type: 'button', className: 'btn btn-secondary btn-sm header-btn', id: 'admin-login-btn' }, createIcon('user', { size: 18 }), 'Admin login');
     btn.addEventListener('click', openLogin);
