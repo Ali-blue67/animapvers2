@@ -323,10 +323,10 @@ body.is-admin {
   --green-200: #99f6e4;
   --green-100: #ccfbf1;
   --green-50: #f0fdfa;
-  --bg: #e6faf5;
+  --bg: #ffffff;
   --line: #cfeae3;
   --line-strong: #a7d6cb;
-  background: linear-gradient(135deg, #e6faf5 0%, #c5f0e6 30%, #a8e6d6 62%, #8fdcc8 100%) fixed;
+  background: #fff;
 }
 
 body.is-admin .site-header {
