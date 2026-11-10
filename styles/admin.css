@@ -315,17 +315,18 @@ body.is-admin section.admin-only:not([hidden]) {
 
 /* ======== Admin mode: the whole site changes colour so it is obvious ======== */
 body.is-admin {
-  --green-950: #1e1b4b;
-  --green-900: #312e81;
-  --green-800: #3730a3;
-  --green-700: #4f46e5;
-  --green-600: #6366f1;
-  --green-200: #c7d2fe;
-  --green-100: #e0e7ff;
-  --green-50: #eef2ff;
-  --bg: #f4f4fc;
-  --line: #dcdcf0;
-  --line-strong: #c3c3e4;
+  --green-950: #042f2e;
+  --green-900: #115e59;
+  --green-800: #0f766e;
+  --green-700: #0d9488;
+  --green-600: #14b8a6;
+  --green-200: #99f6e4;
+  --green-100: #ccfbf1;
+  --green-50: #f0fdfa;
+  --bg: #ecfdf5;
+  --line: #cfeae3;
+  --line-strong: #a7d6cb;
+  background: linear-gradient(135deg, #d1fae5 0%, #ccfbf1 28%, #e0f2e9 52%, #ecfccb 78%, #d9f99d 100%) fixed;
 }
 
 body.is-admin .site-header {
