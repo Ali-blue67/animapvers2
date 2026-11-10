@@ -8,6 +8,7 @@ const API = '/api';
 export const state = {
   admin: false,
   online: false,
+  legends: [], // [{ id, label, color }] added by the admin
   overrides: {}, // { roomId: { name?, description?, unavailable? } }
   models: {}, // { levelId: { version, size } } for admin-uploaded models
 };
@@ -38,12 +39,13 @@ export async function loadConfig() {
   try {
     const cfg = await request('/config');
     state.overrides = cfg.overrides || {};
+    state.legends = cfg.legends || [];
     state.models = cfg.models || {};
     state.online = true;
   } catch {
     state.online = false;
   }
-  applyOverrides(state.overrides);
+  applyOverrides(state.overrides, state.legends);
   emit();
 }
 
@@ -72,8 +74,19 @@ export async function logout() {
   emit();
 }
 
-export async function saveRoom(roomId, { name, description, unavailable }) {
-  await request(`/rooms/${roomId}`, { method: 'PUT', body: { name, description, unavailable } });
+export async function saveRoom(roomId, { name, description, unavailable, legend }) {
+  await request(`/rooms/${roomId}`, { method: 'PUT', body: { name, description, unavailable, legend: legend || '' } });
+  await loadConfig();
+}
+
+export async function addLegend(label, color) {
+  const res = await request('/legends', { method: 'POST', body: { label, color } });
+  await loadConfig();
+  return res.id;
+}
+
+export async function removeLegend(id) {
+  await request(`/legends/${id}`, { method: 'DELETE' });
   await loadConfig();
 }
 

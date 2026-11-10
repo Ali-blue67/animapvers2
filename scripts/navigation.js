@@ -1,4 +1,4 @@
-import { floorLevels, buildCampusGraph, getAllRooms, getFloorsById, GROUND_ZONES, groundZoneOf } from './campus-data.js';
+import { floorLevels, buildCampusGraph, getAllRooms, getFloorsById, GROUND_ZONES, groundZoneOf, getLegends, legendFill } from './campus-data.js';
 import { createIcon } from './icons.js';
 import { renderFloor, computeFloorBounds, setEndArrow } from './floor-renderer.js';
 import { enablePanZoom } from './pan-zoom.js';
@@ -747,8 +747,28 @@ window.addEventListener('animap:floor-drawn', () => { if (mapIsFullscreen) syncF
 resetBtn.addEventListener('click', handleReset);
 $('pwd-dialog-ok').addEventListener('click', () => pwdDialog.close());
 
-// ---------- Admin changes (renames / unavailable rooms) ----------
+// ---------- Legend list (built-in colours plus any the admin added) ----------
+const legendList = document.querySelector('ul.legend');
+function renderLegend() {
+  if (!legendList) return;
+  legendList.replaceChildren();
+  getLegends().forEach((l) => {
+    const li = document.createElement('li');
+    const sw = document.createElement('span');
+    sw.className = l.custom ? 'swatch' : `swatch cat-${l.id}`;
+    if (l.custom) { sw.style.borderColor = l.color; sw.style.background = legendFill(l.color); }
+    li.append(sw, document.createTextNode(l.label));
+    legendList.appendChild(li);
+  });
+  const pwd = document.createElement('li');
+  pwd.innerHTML = '<span class="swatch swatch-pwd"></span>PWD route (elevator &amp; ramps)';
+  legendList.appendChild(pwd);
+}
+renderLegend();
+
+// ---------- Admin changes (renames / unavailable rooms / colours) ----------
 window.addEventListener('animap:data', () => {
+  renderLegend();
   allRooms = getAllRooms();
   const fresh = (room) => (room && !room.special ? allRooms.find((r) => r.id === room.id) || room : room);
   fromRoom = fresh(fromRoom);
@@ -767,7 +787,7 @@ initRoomEditor({
   getRoom: (id) => {
     for (const floor of Object.values(floorsById)) {
       const room = floor.rooms.find((r) => r.id === id);
-      if (room) return room;
+      if (room) return { ...room, floorLabel: floor.label };
     }
     return null;
   },

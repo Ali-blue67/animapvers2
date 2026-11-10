@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS room_overrides (
   name TEXT,
   description TEXT,
   unavailable INTEGER NOT NULL DEFAULT 0,
+  legend TEXT,
   updated_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS models (
@@ -22,4 +23,10 @@ CREATE TABLE IF NOT EXISTS audit_log (
   ip TEXT,
   action TEXT NOT NULL,
   target TEXT
+);
+CREATE TABLE IF NOT EXISTS legends (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  color TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
 );

@@ -1,15 +1,16 @@
 /* ======== Admin: sign-in dialog, badges and editor cards ======== */
 
 /* Admin-only controls stay hidden for guests */
-.admin-only {
+.admin-only,
+.admin-only[hidden] {
   display: none !important;
 }
 
-body.is-admin .admin-only {
+body.is-admin .admin-only:not([hidden]) {
   display: inline-flex !important;
 }
 
-body.is-admin section.admin-only {
+body.is-admin section.admin-only:not([hidden]) {
   display: block !important;
 }
 
@@ -135,4 +136,178 @@ body.is-admin section.admin-only {
 
 .form-note[data-state='error'] {
   color: var(--danger);
+}
+
+/* Edit-rooms mode is clearly on */
+#edit-mode-btn[aria-pressed='true'] {
+  background: var(--green-700, #15803d);
+  border-color: transparent;
+  color: #fff;
+}
+
+.edit-hint:not([hidden]) {
+  display: block !important;
+}
+
+.edit-hint {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: var(--r-md, 12px);
+  background: #fef3c7;
+  color: #5b3b00;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.edit-hint[hidden] {
+  display: none !important;
+}
+
+.editor-badge {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+#room-editor:not([hidden]) {
+  margin: 16px 0;
+  border: 2px solid #b45309;
+  box-shadow: 0 6px 22px rgba(180, 83, 9, 0.22);
+}
+
+.editor-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.editor-fields:disabled {
+  opacity: 0.5;
+}
+
+.edit-warning {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.edit-warning[hidden] {
+  display: none !important;
+}
+
+.edit-warning-box {
+  max-width: 420px;
+  padding: 24px;
+  border-radius: 16px;
+  border-top: 6px solid #b45309;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.edit-warning-box h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.edit-warning-box p {
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.editor-current {
+  margin: 0 0 12px;
+  color: var(--ink-soft, #52605a);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.field-title {
+  display: block;
+  margin: 14px 0 8px;
+  font-weight: 700;
+}
+
+.legend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1.5px solid #cbd5d0;
+  border-radius: 999px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.legend-chip.on {
+  border-color: #b45309;
+  background: #fff7ed;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.25);
+  font-weight: 700;
+}
+
+.chip-del {
+  margin-left: 2px;
+  padding: 0 4px;
+  border-radius: 50%;
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.legend-add {
+  margin-top: 10px;
+}
+
+.legend-add summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.legend-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.legend-add-row input[type='text'] {
+  flex: 1 1 160px;
+  margin: 0;
+}
+
+.legend-add-row input[type='color'] {
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1.5px solid #cbd5d0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+#editor-legend-wrap[hidden] {
+  display: none;
 }

@@ -95,9 +95,10 @@
         <div class="panel-head">
           <h2 class="panel-title" id="nav-title">2D navigation</h2>
           <div class="head-tools">
-            <button type="button" class="btn btn-secondary btn-sm admin-only" id="edit-mode-btn" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>Edit rooms</button>
+            <button type="button" class="btn btn-secondary btn-sm admin-only" id="edit-mode-btn" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg><span id="edit-mode-label">Edit rooms</span></button>
           </div>
         </div>
+        <p class="edit-hint admin-only" id="edit-hint" role="status" hidden>Edit mode is on. Click any room on the map, then change it in the editor card between the map and the legend.</p>
 
         <div class="card directions">
           <div class="search-field">
@@ -171,33 +172,49 @@
           </div>
         </div>
 
-        <ul class="legend" aria-label="Map legend">
-          <li><span class="swatch cat-blue"></span>CSS labs &amp; TESDA</li>
-          <li><span class="swatch cat-orange"></span>Laboratories</li>
-          <li><span class="swatch cat-yellow"></span>Offices &amp; services</li>
-          <li><span class="swatch cat-green"></span>Classrooms</li>
-          <li><span class="swatch cat-purple"></span>Faculty offices</li>
-          <li><span class="swatch cat-gray"></span>Other rooms</li>
-          <li><span class="swatch swatch-pwd"></span>PWD route (elevator &amp; ramps)</li>
-        </ul>
-
         <!-- Admin only: edit the room picked on the map -->
-        <section class="card admin-card" id="room-editor" hidden aria-labelledby="editor-title">
-          <h3 id="editor-title">Room</h3>
+        <section class="card admin-card admin-only" id="room-editor" hidden aria-labelledby="editor-title">
+          <p class="editor-badge">EDIT MODE</p>
+          <h3 id="editor-title">Click a room on the map</h3>
+          <p class="editor-current" id="editor-current"></p>
+          <fieldset id="editor-fields" class="editor-fields" disabled>
           <p class="admin-help">Change how this room is named, or close it off. Changes show for every visitor.</p>
           <label for="editor-name">Title <span class="label-hint">(the bigger text in the room)</span></label>
           <input type="text" id="editor-name" maxlength="80" autocomplete="off" />
           <label for="editor-desc">Description <span class="label-hint">(optional, the smaller text)</span></label>
           <input type="text" id="editor-desc" maxlength="40" autocomplete="off" />
           <p class="form-note">Leave the description empty to show the room number.</p>
+          <div class="legend-picker" id="editor-legend-wrap">
+            <span class="field-title">Legend colour <span class="label-hint">(the group this room is coloured as)</span></span>
+            <div class="legend-chips" id="editor-legends" role="radiogroup" aria-label="Legend colour"></div>
+            <details class="legend-add">
+              <summary>+ Add a new legend</summary>
+              <div class="legend-add-row">
+                <input type="text" id="new-legend-name" maxlength="30" placeholder="Legend name" autocomplete="off" aria-label="New legend name" />
+                <input type="color" id="new-legend-color" value="#0ea5e9" aria-label="New legend colour" />
+                <button type="button" class="btn btn-secondary btn-sm" id="new-legend-add">Add legend</button>
+              </div>
+            </details>
+          </div>
           <label class="check-row"><input type="checkbox" id="editor-unavailable" /> Mark as <strong>unavailable</strong> (red stripes on the map)</label>
           <div class="admin-row">
             <button type="button" class="btn btn-primary btn-sm" id="editor-save">Save</button>
             <button type="button" class="btn btn-secondary btn-sm" id="editor-reset">Reset to original</button>
             <button type="button" class="btn btn-ghost btn-sm" id="editor-close">Close</button>
           </div>
+          </fieldset>
           <p class="form-note" id="editor-message" role="status" aria-live="polite"></p>
         </section>
+
+        <ul class="legend" aria-label="Map legend">
+          <li><span class="swatch cat-blue"></span>CSS labs &amp; TESDA</li>
+          <li><span class="swatch cat-orange"></span>Science, food &amp; computer labs</li>
+          <li><span class="swatch cat-yellow"></span>Offices &amp; services</li>
+          <li><span class="swatch cat-green"></span>Classrooms</li>
+          <li><span class="swatch cat-purple"></span>Faculty offices</li>
+          <li><span class="swatch cat-gray"></span>Other rooms</li>
+          <li><span class="swatch swatch-pwd"></span>PWD route (elevator &amp; ramps)</li>
+        </ul>
       </section>
 
     </main>
@@ -225,5 +242,13 @@
 <script type="module" src="scripts/header.js"></script>
 <script type="module" src="scripts/model-viewer.js"></script>
 <script type="module" src="scripts/navigation.js"></script>
+
+  <div class="edit-warning" id="edit-warning" role="alertdialog" aria-modal="true" aria-labelledby="edit-warning-title" hidden>
+    <div class="edit-warning-box">
+      <h2 id="edit-warning-title">You are in edit mode</h2>
+      <p>Changes you save here are shown to <strong>every visitor</strong>. Click a room on the map to rename it or mark it unavailable, then press <strong>Done editing</strong> when you are finished.</p>
+      <button type="button" class="btn btn-primary" id="edit-warning-ok">Got it</button>
+    </div>
+  </div>
 </body>
 </html>

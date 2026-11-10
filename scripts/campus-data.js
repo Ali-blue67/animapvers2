@@ -537,9 +537,43 @@ export function buildCampusGraph() {
   return combined;
 }
 
-// ---------- Admin overrides (names + unavailable flags from the database) ----------
-// overrides = { "<room id>": { name?: string, description?: string, unavailable?: boolean } }
-export function applyOverrides(overrides = {}) {
+// ---------- Legends (colour groups) ----------
+// The six built-in legends keep their colours in CSS (class cat-<id>); legends the admin adds carry their own hex colour.
+export const DEFAULT_LEGENDS = [
+  { id: 'blue', label: 'CSS labs & TESDA' },
+  { id: 'orange', label: 'Science, food & computer labs' },
+  { id: 'yellow', label: 'Offices & services' },
+  { id: 'green', label: 'Classrooms' },
+  { id: 'purple', label: 'Faculty offices' },
+  { id: 'gray', label: 'Other rooms' },
+];
+let customLegends = []; // [{ id, label, color }]
+
+export function getLegends() {
+  return [...DEFAULT_LEGENDS.map((l) => ({ ...l, custom: false })), ...customLegends.map((l) => ({ ...l, custom: true }))];
+}
+
+// "#rrggbb" -> the soft fill used inside a room
+export function legendFill(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, 0.16)`;
+}
+
+// The legend a room is really drawn with: the admin's choice if it still exists, otherwise its normal colour.
+export function legendOf(room) {
+  const custom = customLegends.find((l) => l.id === room.legendId);
+  if (custom) return { id: custom.id, label: custom.label, color: custom.color, custom: true };
+  const id = DEFAULT_LEGENDS.some((l) => l.id === room.legendId) ? room.legendId : room.cat || 'gray';
+  const d = DEFAULT_LEGENDS.find((l) => l.id === id) || DEFAULT_LEGENDS[5];
+  return { id: d.id, label: d.label, custom: false };
+}
+
+// ---------- Admin overrides (names, descriptions, colours and unavailable flags from the database) ----------
+// overrides = { "<room id>": { name?, description?, unavailable?, legend? } }
+export function applyOverrides(overrides = {}, legends = []) {
+  customLegends = Array.isArray(legends)
+    ? legends.filter((l) => l && /^c-[a-z0-9]+$/.test(l.id) && /^#[0-9a-f]{6}$/i.test(l.color)).map((l) => ({ id: l.id, label: String(l.label || ''), color: l.color }))
+    : [];
   Object.values(floors).forEach((floor) => {
     floor.rooms.forEach((r) => {
       const o = overrides[r.id] || {};
@@ -547,6 +581,7 @@ export function applyOverrides(overrides = {}) {
       // description empty -> fall back to the room number
       r.code = typeof o.description === 'string' && o.description.trim() ? o.description.trim() : r.defaultCode;
       r.unavailable = !!o.unavailable;
+      r.legendId = typeof o.legend === 'string' && o.legend ? o.legend : null;
     });
   });
 }

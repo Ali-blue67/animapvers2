@@ -1,6 +1,11 @@
+
 name = "animap"
 main = "worker/index.js"
 compatibility_date = "2025-09-01"
+
+# Keep one public address only (no extra per-version preview links).
+workers_dev = true
+preview_urls = false
 
 # Serves the website files AND the /api routes from ONE origin (needed for the secure cookie).
 [assets]

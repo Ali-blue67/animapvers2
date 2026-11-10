@@ -2,6 +2,7 @@
 // navigation tab and the welcome-page preview, so both always show
 // the same plan from the same data.
 import { appendIconShapes } from './icons.js';
+import { legendOf, legendFill } from './campus-data.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CIRCLE_R = 16;
@@ -148,7 +149,10 @@ function renderRoom(root, r) {
   const title = svgEl('title');
   title.textContent = r.unavailable ? `${r.name} (unavailable)` : r.name;
   group.appendChild(title);
-  group.appendChild(svgEl('rect', { x: r.x - w / 2, y: r.y - h / 2, width: w, height: h, rx: 6, class: `room-rect cat-${r.cat || 'gray'}` }));
+  const lg = legendOf(r);
+  const rectAttrs = { x: r.x - w / 2, y: r.y - h / 2, width: w, height: h, rx: 6, class: `room-rect cat-${lg.custom ? 'custom' : lg.id}` };
+  if (lg.custom) rectAttrs.style = `--room-line:${lg.color};--room-fill:${legendFill(lg.color)}`;
+  group.appendChild(svgEl('rect', rectAttrs));
 
   // Title (bigger) + description (smaller, usually the room number), always inside the box.
   const fit = fitText(r.name, r.code, w, h);

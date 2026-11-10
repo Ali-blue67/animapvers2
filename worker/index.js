@@ -15,6 +15,9 @@ const SESSION_MS = 2 * 60 * 60 * 1000;
 const MAX_TRIES = 5;
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_OVERRIDES = 600;
+const MAX_LEGENDS = 20;
+const DEFAULT_LEGENDS = ['blue', 'orange', 'yellow', 'green', 'purple', 'gray'];
+const HEX = /^#[0-9a-fA-F]{6}$/;
 
 const enc = new TextEncoder();
 const SEC_HEADERS = {
@@ -87,15 +90,16 @@ const cleanDesc = (s) => String(s).replace(/[\u0000-\u001f\u007f<>]/g, '').trim(
 
 // ---------- handlers ----------
 async function getConfig(env) {
-  const [rooms, models] = await Promise.all([
-    env.DB.prepare('SELECT room_id, name, description, unavailable FROM room_overrides').all(),
+  const [rooms, models, legendRows] = await Promise.all([
+    env.DB.prepare('SELECT room_id, name, description, unavailable, legend FROM room_overrides').all(),
     env.DB.prepare('SELECT level_id, version, size FROM models').all(),
+    env.DB.prepare('SELECT id, label, color FROM legends ORDER BY updated_at').all(),
   ]);
   const overrides = {};
-  rooms.results.forEach((r) => (overrides[r.room_id] = { name: r.name || undefined, description: r.description === null ? undefined : r.description, unavailable: !!r.unavailable }));
+  rooms.results.forEach((r) => (overrides[r.room_id] = { name: r.name || undefined, description: r.description === null ? undefined : r.description, unavailable: !!r.unavailable, legend: r.legend || undefined }));
   const modelMap = {};
   models.results.forEach((m) => (modelMap[m.level_id] = { version: m.version, size: m.size }));
-  return json({ overrides, models: modelMap }, 200, { 'Cache-Control': 'public, max-age=15' });
+  return json({ overrides, models: modelMap, legends: legendRows.results.map((l) => ({ id: l.id, label: l.label, color: l.color })) }, 200, { 'Cache-Control': 'public, max-age=15' });
 }
 
 async function login(request, env) {
@@ -130,14 +134,39 @@ async function putRoom(request, env, roomId) {
   // description: empty = show the room number instead
   const description = body.description === undefined || body.description === null ? null : cleanDesc(body.description) || null;
   const unavailable = body.unavailable ? 1 : 0;
+  // legend: a built-in colour name or the id of a legend the admin made; empty = the room's normal colour
+  let legend = typeof body.legend === 'string' ? body.legend.trim() : '';
+  if (legend && !DEFAULT_LEGENDS.includes(legend)) {
+    const found = /^c-[a-z0-9]{6,12}$/.test(legend) ? await env.DB.prepare('SELECT id FROM legends WHERE id = ?').bind(legend).first() : null;
+    if (!found) return json({ error: 'Unknown legend.' }, 400);
+  }
+  legend = legend || null;
 
   const count = await env.DB.prepare('SELECT COUNT(*) AS n FROM room_overrides').first();
   if (count.n >= MAX_OVERRIDES) return json({ error: 'Too many overrides' }, 400);
 
-  await env.DB.prepare('INSERT INTO room_overrides (room_id, name, description, unavailable, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(room_id) DO UPDATE SET name = excluded.name, description = excluded.description, unavailable = excluded.unavailable, updated_at = excluded.updated_at')
-    .bind(roomId, name || null, description, unavailable, Date.now()).run();
-  await audit(env, request, 'room_update', `${roomId} name=${name || '-'} desc=${description === null ? '-' : description} unavailable=${unavailable}`);
+  await env.DB.prepare('INSERT INTO room_overrides (room_id, name, description, unavailable, legend, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(room_id) DO UPDATE SET name = excluded.name, description = excluded.description, unavailable = excluded.unavailable, legend = excluded.legend, updated_at = excluded.updated_at')
+    .bind(roomId, name || null, description, unavailable, legend, Date.now()).run();
+  await audit(env, request, 'room_update', `${roomId} name=${name || '-'} desc=${description === null ? '-' : description} unavailable=${unavailable} legend=${legend || '-'}`);
   return json({ ok: true });
+}
+
+async function postLegend(request, env, id) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'Bad request' }, 400); }
+  const label = typeof body.label === 'string' ? cleanName(body.label).slice(0, 30) : '';
+  const color = typeof body.color === 'string' ? body.color.trim() : '';
+  if (!label) return json({ error: 'Give the legend a name.' }, 400);
+  if (!HEX.test(color)) return json({ error: 'Pick a valid colour.' }, 400);
+  if (!id) {
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM legends').first();
+    if (n.n >= MAX_LEGENDS) return json({ error: `You can add up to ${MAX_LEGENDS} legends.` }, 400);
+    id = `c-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+  }
+  await env.DB.prepare('INSERT INTO legends (id, label, color, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET label = excluded.label, color = excluded.color')
+    .bind(id, label, color.toLowerCase(), Date.now()).run();
+  await audit(env, request, 'legend_save', `${id} ${label} ${color}`);
+  return json({ ok: true, id });
 }
 
 async function putModel(request, env, level) {
@@ -192,6 +221,16 @@ async function route(request, env, url) {
     return json({ ok: true });
   }
 
+  if (p === '/api/legends' && method === 'POST') return postLegend(request, env, null);
+  const mLegend = /^\/api\/legends\/(c-[a-z0-9]{6,12})$/.exec(p);
+  if (mLegend && method === 'PUT') return postLegend(request, env, mLegend[1]);
+  if (mLegend && method === 'DELETE') {
+    await env.DB.prepare('UPDATE room_overrides SET legend = NULL WHERE legend = ?').bind(mLegend[1]).run();
+    await env.DB.prepare('DELETE FROM legends WHERE id = ?').bind(mLegend[1]).run();
+    await audit(env, request, 'legend_delete', mLegend[1]);
+    return json({ ok: true });
+  }
+
   if (mModel && LEVELS.includes(mModel[1])) {
     if (method === 'PUT') return putModel(request, env, mModel[1]);
     if (method === 'DELETE') {
@@ -204,14 +243,38 @@ async function route(request, env, url) {
   return json({ error: 'Not found' }, 404);
 }
 
+// Repairs an older database in place (e.g. tables made before "description" existed), so the
+// admin never has to run migrations by hand.
+async function repairDatabase(env) {
+  const stmts = [
+    'CREATE TABLE IF NOT EXISTS room_overrides (room_id TEXT PRIMARY KEY, name TEXT, description TEXT, unavailable INTEGER NOT NULL DEFAULT 0, legend TEXT, updated_at INTEGER NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS legends (id TEXT PRIMARY KEY, label TEXT NOT NULL, color TEXT NOT NULL, updated_at INTEGER NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS models (level_id TEXT PRIMARY KEY, version INTEGER NOT NULL, size INTEGER NOT NULL, updated_at INTEGER NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT PRIMARY KEY, count INTEGER NOT NULL, first_at INTEGER NOT NULL)',
+    'CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, ip TEXT, action TEXT NOT NULL, target TEXT)',
+  ];
+  for (const sql of stmts) await env.DB.prepare(sql).run();
+  try { await env.DB.prepare('ALTER TABLE room_overrides ADD COLUMN description TEXT').run(); } catch { /* already there */ }
+  try { await env.DB.prepare('ALTER TABLE room_overrides ADD COLUMN legend TEXT').run(); } catch { /* already there */ }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    const attempt = request.clone();
     try {
       return await route(request, env, url);
     } catch (err) {
       console.error(err);
+      if (/no such (column|table)|has no column/i.test(String(err && err.message))) {
+        try {
+          await repairDatabase(env);
+          return await route(attempt, env, url);
+        } catch (err2) {
+          console.error(err2);
+        }
+      }
       return json({ error: 'Server error' }, 500);
     }
   },
