@@ -199,6 +199,8 @@ export function initRoomEditor({ svgRoot, getRoom }) {
   // happening on the whole map. So find the room under the pointer ourselves, and ignore drags.
   let downAt = null;
   svgRoot.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; }, true);
+  window.addEventListener('animap:viewmode', (e) => { if (e.detail.mode === '3d' && editing) toggle.click(); }); // editing is a 2D-only job
+
   svgRoot.addEventListener('click', (event) => {
     if (!editing || !state.admin) return;
     if (downAt && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 6) return; // that was a drag

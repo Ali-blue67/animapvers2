@@ -607,3 +607,79 @@ html.map-fs body {
 #floor-plan-svg {
   touch-action: none;
 }
+
+
+/* ======== Calmer 2D layout ======== */
+.btn-icon {
+  flex: 0 0 auto;
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+#replay-btn:disabled,
+#slow-replay-btn:disabled {
+  display: none;
+}
+
+.actions .btn-primary {
+  flex: 1 1 auto;
+}
+
+.floor-bar {
+  gap: 10px;
+}
+
+.floor-bar .segmented {
+  flex: 1;
+}
+
+.legend-box {
+  margin-top: 12px;
+}
+
+.legend-box summary {
+  width: fit-content;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legend-box .legend {
+  margin-top: 10px;
+}
+
+@media (max-width: 700px) {
+  .floor-updown {
+    display: none;
+  }
+
+  .actions .btn-primary {
+    flex: 1 1 auto;
+  }
+
+  .actions .btn-icon {
+    flex: 0 0 44px;
+  }
+
+  .pref-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .pref-label {
+    font-size: 0.8125rem;
+  }
+
+  .directions {
+    padding: 14px;
+    gap: 12px;
+  }
+}
+
+/* "Between floors" sits quietly in the card, not in a tinted bar */
+.directions .pref-row {
+  background: none;
+}

@@ -34,7 +34,8 @@ let fromRoom = null;
 let toRoom = null;
 let currentLegs = null;
 let activeLegIndex = 0;
-let activeFloorId = floorLevels[0].id;
+const HOME_FLOOR = 'ground'; // Upper Ground is where everyone starts
+let activeFloorId = HOME_FLOOR;
 let panZoom = null; // controller for the floor currently showing pan/zoom
 let verticalPreference = 'stairs'; // 'stairs' | 'elevator' | 'pwd'
 
@@ -747,6 +748,13 @@ window.addEventListener('animap:floor-drawn', () => { if (mapIsFullscreen) syncF
 resetBtn.addEventListener('click', handleReset);
 $('pwd-dialog-ok').addEventListener('click', () => pwdDialog.close());
 
+// ---------- 2D / 3D switch: every flip lands on Upper Ground ----------
+window.addEventListener('animap:viewmode', () => {
+  if (mapIsFullscreen) setMapFullscreen(false);
+  clearActiveRoute();
+  setActiveFloor(HOME_FLOOR);
+});
+
 // ---------- Legend list (built-in colours plus any the admin added) ----------
 const legendList = document.querySelector('ul.legend');
 function renderLegend() {
@@ -765,6 +773,8 @@ function renderLegend() {
   legendList.appendChild(pwd);
 }
 renderLegend();
+const legendBox = document.getElementById('legend-box');
+if (legendBox) legendBox.open = window.matchMedia('(min-width: 701px)').matches;
 
 // ---------- Admin changes (renames / unavailable rooms / colours) ----------
 window.addEventListener('animap:data', () => {
@@ -794,3 +804,4 @@ initRoomEditor({
 });
 
 setActiveFloor(activeFloorId);
+if (window.finishLoading) window.finishLoading(); // the 2D map is ready; the 3D model loads only when asked for

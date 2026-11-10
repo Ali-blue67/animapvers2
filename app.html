@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="styles/admin.css" />
 <link rel="stylesheet" href="styles/motion.css" />
 </head>
-<body class="app">
+<body class="app" data-view="2d">
 <a class="skip-link" href="#main">Skip to main content</a>
 
 <!-- Ghost (skeleton) preview of the page while it loads -->
@@ -26,7 +26,6 @@
   <div class="skeleton-progress" aria-hidden="true"><div class="loading-fill" id="loading-fill"></div></div>
   <div class="sk-header" aria-hidden="true"><span class="sk sk-circle"></span><span class="sk sk-line" style="width:120px"></span><span class="sk sk-pill sk-right"></span></div>
   <div class="sk-body" aria-hidden="true">
-    <div class="sk-sidebar"><span class="sk sk-tab"></span><span class="sk sk-tab"></span></div>
     <div class="sk-main">
       <span class="sk sk-line sk-title"></span>
       <div class="sk-card"><span class="sk sk-block"></span><span class="sk sk-pill sk-levels"></span></div>
@@ -37,7 +36,6 @@
 
 <div class="app-shell">
   <header class="site-header">
-    <button type="button" class="icon-btn hamburger-btn" id="hamburger-btn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6l16 0"/><path d="M4 12l16 0"/><path d="M4 18l16 0"/></svg></button>
     <a class="brand" href="index.html" aria-label="DLSU-D BED Navigator, back to start">
       <span class="brand-mark"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0"/></svg></span>
       DLSU-D BED Navigator
@@ -46,20 +44,20 @@
   </header>
 
   <div class="app-body">
-    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-    <nav class="sidebar" id="sidebar" aria-label="Sections">
-      <button type="button" class="sidebar-tab" data-tab="home-panel" aria-current="page"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"/><path d="M12 22v-10"/><path d="M12 12l8.73 -5.04"/><path d="M3.27 6.96l8.73 5.04"/></svg><span>3D model</span></button>
-      <button type="button" class="sidebar-tab" data-tab="navigation-panel"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M19 7a2 2 0 1 0 0 -4a2 2 0 0 0 0 4"/><path d="M11 19h5.5a3.5 3.5 0 0 0 0 -7h-8a3.5 3.5 0 0 1 0 -7h4.5"/></svg><span>2D navigation</span></button>
-    </nav>
-
     <main class="main-content" id="main" tabindex="-1">
 
-      <!-- 3D MODEL -->
-      <section id="home-panel" class="tab-panel active" aria-labelledby="home-title">
-        <div class="panel-head">
-          <h2 class="panel-title" id="home-title">3D model</h2>
+      <!-- One map, two ways to look at it -->
+      <div class="view-bar">
+        <div class="view-switch">
+          <span class="view-label" id="view-label-2d">2D</span>
+          <button type="button" class="switch" id="view-switch" role="switch" aria-checked="false" aria-label="Show the 3D view"><span class="switch-thumb"></span></button>
+          <span class="view-label" id="view-label-3d">3D</span>
         </div>
+        <button type="button" class="btn btn-secondary btn-sm admin-only" id="edit-mode-btn" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg><span id="edit-mode-label">Edit rooms</span></button>
+      </div>
 
+      <!-- 3D MODEL -->
+      <section id="home-panel" class="view-panel" aria-label="3D view">
         <div class="card model-card">
           <div class="model-canvas-container" id="model-canvas-container">
             <!-- Overlays sit on top of the canvas -->
@@ -91,13 +89,7 @@
       </section>
 
       <!-- 2D NAVIGATION -->
-      <section id="navigation-panel" class="tab-panel" aria-labelledby="nav-title">
-        <div class="panel-head">
-          <h2 class="panel-title" id="nav-title">2D navigation</h2>
-          <div class="head-tools">
-            <button type="button" class="btn btn-secondary btn-sm admin-only" id="edit-mode-btn" aria-pressed="false"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg><span id="edit-mode-label">Edit rooms</span></button>
-          </div>
-        </div>
+      <section id="navigation-panel" class="view-panel" aria-label="2D navigation">
         <p class="edit-hint admin-only" id="edit-hint" role="status" hidden>Edit mode is on. Click any room on the map, then change it in the editor card between the map and the legend.</p>
 
         <div class="card directions">
@@ -130,8 +122,8 @@
 
           <div class="actions">
             <button type="button" class="btn btn-primary" id="find-route-btn">Find route</button>
-            <button type="button" class="btn btn-secondary" id="replay-btn" disabled><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"/></svg>Replay</button>
-            <button type="button" class="btn btn-secondary" id="slow-replay-btn" disabled title="Replay the route animation more slowly"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg>Slow replay</button>
+            <button type="button" class="btn btn-secondary btn-icon" id="replay-btn" title="Replay the route" aria-label="Replay the route" disabled><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.05 11a8 8 0 1 1 .5 4m-.5 5v-5h5"/></svg><span class="visually-hidden">Replay</span></button>
+            <button type="button" class="btn btn-secondary btn-icon" id="slow-replay-btn" aria-label="Replay the route slowly" disabled title="Replay the route animation more slowly"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg><span class="visually-hidden">Slow replay</span></button>
             <button type="button" class="btn btn-ghost" id="reset-btn">Reset</button>
           </div>
         </div>
@@ -164,7 +156,6 @@
 
         <!-- Floor selector sits right under the map -->
         <div class="floor-bar">
-          <span class="floor-bar-label">Floor</span>
           <div class="segmented segmented-scroll" id="floor-switcher" role="group" aria-label="Floor"></div>
           <div class="floor-updown">
           <button type="button" class="icon-btn" id="floor-down-btn" disabled aria-label="Floor below"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5l0 14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/></svg></button>
@@ -206,6 +197,8 @@
           <p class="form-note" id="editor-message" role="status" aria-live="polite"></p>
         </section>
 
+        <details class="legend-box" id="legend-box">
+          <summary>Legend</summary>
         <ul class="legend" aria-label="Map legend">
           <li><span class="swatch cat-blue"></span>CSS labs &amp; TESDA</li>
           <li><span class="swatch cat-orange"></span>Science, food &amp; computer labs</li>
@@ -215,6 +208,7 @@
           <li><span class="swatch cat-gray"></span>Other rooms</li>
           <li><span class="swatch swatch-pwd"></span>PWD route (elevator &amp; ramps)</li>
         </ul>
+        </details>
       </section>
 
     </main>
@@ -230,7 +224,6 @@
 </dialog>
 
 <script src="scripts/loading.js"></script>
-<script src="scripts/sidebar.js"></script>
 <script type="importmap">
 {
   "imports": {
@@ -240,6 +233,7 @@
 }
 </script>
 <script type="module" src="scripts/header.js"></script>
+<script type="module" src="scripts/view-mode.js"></script>
 <script type="module" src="scripts/model-viewer.js"></script>
 <script type="module" src="scripts/navigation.js"></script>
 

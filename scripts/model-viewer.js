@@ -237,10 +237,10 @@ if (adminPanel) {
 // When the server data changes (new upload, sign in), reload the model if its URL changed.
 window.addEventListener('animap:data', () => {
   syncAdminPanel();
-  if (currentLevelId && modelPathFor(currentLevelId) !== currentUrl) loadLevel(currentLevelId);
+  if (started && currentLevelId && modelPathFor(currentLevelId) !== currentUrl) loadLevel(currentLevelId);
 });
 
-// Keep the canvas matched to its container (window resize, sidebar toggle).
+// Keep the canvas matched to its container (window resize, switching between 2D and 3D).
 new ResizeObserver(() => {
   camera.aspect = container.clientWidth / container.clientHeight;
   camera.updateProjectionMatrix();
@@ -254,5 +254,16 @@ function animate() {
 }
 animate();
 
-// Start on the first level (after everything above is defined).
-loadLevel(floorLevels[0].id);
+// The 3D view is hidden until the switch is flipped, so the first model loads then (always Upper Ground).
+// Reaching the model costs nothing for visitors who only use 2D, but the page must not wait on it.
+const HOME_LEVEL = 'ground';
+let started = false;
+window.addEventListener('animap:viewmode', (e) => {
+  if (e.detail.mode !== '3d') return;
+  started = true;
+  controls.autoRotate = false;
+  rotateBtn.setAttribute('aria-pressed', 'false');
+  loadLevel(HOME_LEVEL);
+});
+// Nothing is waiting on a 3D model any more, so the loading screen can finish.
+if (window.finishLoading) window.finishLoading();

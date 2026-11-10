@@ -12,7 +12,6 @@
 .icon-btn,
 .segmented button,
 .pref-btn,
-.sidebar-tab,
 .suggestions li {
   -webkit-tap-highlight-color: transparent;
   transition:
@@ -65,7 +64,6 @@
 }
 
 /* ---- New content fades in ---- */
-.tab-panel.active,
 .leg-banner.visible,
 .route-message:not(:empty) {
   animation: fade-in 0.3s var(--ease-soft);

@@ -115,7 +115,6 @@ body.app {
 }
 
 @media (max-width: 860px) {
-  .sk-sidebar { display: none; }
 }
 
 /* ======== Shell ======== */
@@ -183,74 +182,11 @@ body.app {
   font-weight: 700;
 }
 
-.hamburger-btn {
-  display: none;
-  margin-left: -8px;
-}
-
 .app-body {
   position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
-}
-
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 236px;
-  flex-shrink: 0;
-  padding: 16px 12px;
-  border-right: 1px solid var(--line);
-  background: var(--surface);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  transition: transform var(--dur) var(--ease);
-}
-
-.sidebar-tab {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 46px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: transparent;
-  color: var(--ink-2);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-align: left;
-  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-
-.sidebar-tab:hover {
-  background: var(--green-50);
-  color: var(--green-800);
-}
-
-.sidebar-tab[aria-current='page'] {
-  background: var(--green-100);
-  color: var(--green-900);
-  font-weight: 600;
-}
-
-.sidebar-tab[aria-current='page']::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 11px;
-  bottom: 11px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--green-800);
-}
-
-.sidebar-backdrop {
-  display: none;
 }
 
 .main-content {
@@ -263,15 +199,6 @@ body.app {
 
 .main-content:focus {
   box-shadow: none;
-}
-
-.tab-panel {
-  display: none;
-}
-
-.tab-panel.active {
-  display: block;
-  animation: panel-in 260ms var(--ease) both;
 }
 
 @keyframes panel-in {
@@ -300,45 +227,111 @@ body.app {
 
 
 
-/* Width the sidebar becomes a slide-out drawer. */
-@media (max-width: 860px) {
-  .hamburger-btn {
-    display: inline-grid;
-  }
-
-  .sidebar {
-    position: fixed;
-    top: var(--header-h);
-    bottom: 0;
-    left: 0;
-    z-index: 60;
-    width: min(280px, 84vw);
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-    transform: translateX(-100%);
-    box-shadow: var(--shadow-md);
-  }
-
-  .sidebar.open {
-    transform: none;
-  }
-
-  .sidebar-backdrop {
-    display: block;
-    position: fixed;
-    inset: var(--header-h) 0 0 0;
-    z-index: 50;
-    background: rgba(4, 48, 31, 0.4);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--dur) var(--ease);
-  }
-
-  .sidebar-backdrop.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
 #loading-screen[hidden] {
   display: none;
+}
+
+/* ======== One page: 2D / 3D switch ======== */
+.main-content > * {
+  max-width: 1120px;
+  margin-inline: auto;
+}
+
+.view-panel {
+  display: none;
+  animation: panel-in 260ms var(--ease) both;
+}
+
+body[data-view='2d'] #navigation-panel,
+body[data-view='3d'] #home-panel {
+  display: block;
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.view-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.view-label {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.view-label.on {
+  color: var(--green-900);
+}
+
+.switch {
+  position: relative;
+  width: 56px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #c4ccc7;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease);
+}
+
+.switch[aria-checked='true'] {
+  background: var(--green-800);
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform var(--dur) var(--ease);
+}
+
+.switch[aria-checked='true'] .switch-thumb {
+  transform: translateX(24px);
+}
+
+.switch:focus-visible {
+  outline: 3px solid var(--green-700);
+  outline-offset: 3px;
+}
+
+/* 3D: just the model, nothing to fill in */
+body[data-view='3d'] #edit-mode-btn,
+body[data-view='3d'] #edit-hint {
+  display: none !important;
+}
+
+/* Keep the header on one tidy line on phones */
+.site-header .brand {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .site-header .brand {
+    font-size: 1rem;
+    gap: 8px;
+  }
 }
