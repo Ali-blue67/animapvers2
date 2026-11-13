@@ -212,14 +212,6 @@ function drawScenery(root, d) {
       ? { x1: d.x, y1: y + 12, x2: d.x, y2: y + d.h - 12 }
       : { x1: x + 12, y1: d.y, x2: x + d.w - 12, y2: d.y };
     g.appendChild(svgEl('line', { ...lane, class: 'road-lane' }));
-    const lx = d.dir === 'v' ? d.x : d.x - d.w * 0.3;
-    const ly = d.dir === 'v' ? d.y + d.h * 0.25 : d.y;
-    const label = svgEl('text', {
-      x: lx, y: ly, class: 'road-label', 'dominant-baseline': 'central',
-      transform: d.dir === 'v' ? `rotate(-90 ${lx} ${ly})` : '',
-    });
-    label.textContent = 'ROAD';
-    g.appendChild(label);
   } else {
     // Running track: brick-red ring, lane lines, and a grass field with its centre marking.
     g.appendChild(svgEl('ellipse', { cx: d.x, cy: d.y, rx: d.rx, ry: d.ry, class: 'oval-track' }));

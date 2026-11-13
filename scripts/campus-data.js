@@ -70,7 +70,7 @@ function buildFloor(spec) {
   corridors.forEach((c) => {
     const pts = c.pts.map(([x, y]) => P(x, y));
     pts.forEach((p) => verts.push(p));
-    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, pwdOnly: !!c.pwdOnly, curve: !!c.curve, w: c.w || 1, splits: [] });
+    for (let i = 0; i < pts.length - 1; i++) segs.push({ a: pts[i], b: pts[i + 1], pwd: c.pwd !== false, pwdOnly: !!c.pwdOnly, noRoute: !!c.noRoute, curve: !!c.curve, w: c.w || 1, splits: [] });
   });
 
   // Place every item and find the corridor point it plugs into.
@@ -125,10 +125,10 @@ function buildFloor(spec) {
       if (keys[keys.length - 1] !== key) keys.push(key);
     });
     for (let i = 0; i < keys.length - 1; i++) {
-      const pair = [keys[i], keys[i + 1]].sort().join('|') + (s.pwd ? 'p' : 'n') + (s.pwdOnly ? 'o' : '');
+      const pair = [keys[i], keys[i + 1]].sort().join('|') + (s.pwd ? 'p' : 'n') + (s.pwdOnly ? 'o' : '') + (s.noRoute ? 'x' : '');
       if (seen.has(pair)) continue;
       seen.add(pair);
-      waypointEdges.push([keys[i], keys[i + 1], s.pwd, s.curve, s.w, s.pwdOnly]);
+      waypointEdges.push([keys[i], keys[i + 1], s.pwd, s.curve, s.w, s.pwdOnly, s.noRoute]);
     }
   });
 
@@ -237,6 +237,12 @@ const lowerGround = buildFloor({
 const path_ = frame(52, 706, 592, 419, 1); // "Pathways going to MTH/CTH" page
 const mth = frame(554, 749, 1134, -261, 0.6); // Mariano Trias Hall page
 const cth = frame(621, 749, 1063.2, -694.8, 0.6); // Candido Tirona Hall page
+// The newest CTH drawing (1024x768 picture) -> the page units above. Left walkway x400 -> 420, right hallway x592 -> 623.
+const ciX = (x) => 420 + (x - 400) * 1.0571;
+const ciY = (y) => 9 + (y - 35) * 1.0571;
+const ci = (pts) => cth.pts(pts.map(([x, y]) => [ciX(x), ciY(y)]));
+const cr = (id, name, code, x1, x2, y1, y2, o) => cth.room(id, name, code, ciX(x1), ciX(x2), ciY(y1), ciY(y2), o);
+const ci1 = (t, id, x, y, name) => cth.c(t, id, ciX(x), ciY(y), name);
 const mthWalk = [[436, 26], [436, 546], ...arc(461, 546, 25, 180, 90, 10), ...arc(528, 596, 25, 270, 360, 10)];
 const pathWalk = [[52, 706], [459, 706], [459, 187], ...arc(478, 187, 19, 180, 270, 5), [594, 168], [594, 26]];
 
@@ -264,21 +270,17 @@ const upperGround = buildFloor({
     { pts: mth.pts([...mthWalk, [554, 596]]), curve: true },
     { pts: mth.pts([[436, 47], [529, 47], ...arc(529, 72, 25, 270, 360, 4), [554, 114]]), pwd: false, w: 1.8, curve: true },
     { pts: mth.pts([[436, 141], [453, 141], ...arc(453, 131, 10, 90, 0, 3), [463, 125], ...arc(479, 125, 16, 180, 270, 4), [554, 109]]), w: 1.8, curve: true },
-    // Candido Tirona Hall
-    { pts: cth.pts([[420, 16], [420, 657]]) },
-    { pts: cth.pts([[479, 16], [478.5, 650]]) },
-    // the curved side path from the road: wheelchair users take it, everyone else walks straight in
-    { pts: cth.pts([[478.5, 650], [478.5, 716], ...arc(495.5, 716, 17, 180, 90, 4), [621, 733]]), curve: true, pwdOnly: true },
-    { pts: cth.pts([[420, 614], [479, 614]]) },
-    { pts: cth.pts([[420, 327], [466, 327], ...arc(466, 340, 13, 270, 360, 3), [479, 346]]), pwd: false, curve: true },
-    { pts: cth.pts([[420, 656], [478.5, 656.5]]) },
-    // short cut at the bottom: walkers go up the hallway beside CTH 104/105 instead
-    { pts: cth.pts([[478.5, 656.5], [621, 657]]), pwdOnly: true },
-    { pts: cth.pts([[621, 657], [623, 657]]) },
-    { pts: cth.pts([[479, 397], [623, 397]]) },
-    { pts: cth.pts([[623, 334], [623, 657]]) },
-    { pts: cth.pts([[621, 657], [621, 733]]), pwd: false },
-    { pts: cth.pts([[621, 733], [621, 749]]) },
+    // Candido Tirona Hall: drawn from the floor plan page ("ci" turns that page's pixels into map units)
+    { pts: ci([[400, 40], [400, 632]]) }, // left walkway, along CTH 113 .. 106
+    { pts: ci([[457, 45], [457, 685]]) }, // middle walkway
+    // the curve at the very bottom is drawn but not walked: everyone enters through the hallway beside CTH 105
+    { pts: ci([[457, 685], ...arc(477, 685, 20, 180, 90, 4), [592, 705]]), curve: true, noRoute: true },
+    { pts: ci([[400, 323], [440, 323], ...arc(440, 340, 17, 270, 360, 3), [457, 340]]), curve: true },
+    { pts: ci([[457, 437], [592, 437]]) }, // link at the top of the courtyard, level with the top of CTH 101
+    { pts: ci([[400, 594], [457, 594]]), pwd: false }, // red: steps, by the Storage Room
+    { pts: ci([[400, 632], [457, 633], [592, 633]]) }, // link beside CTH 104/105
+    { pts: ci([[592, 437], [592, 735]]) }, // right hallway, from the courtyard link down along CTH 101 .. 105
+    { pts: cth.pts([[621, 749], [623, 749]]) }, // where the path from the gate arrives
   ],
   items: [
     // Building 2 (top)
@@ -329,16 +331,25 @@ const upperGround = buildFloor({
     mth.room('mth106', 'MTH 106', '', 562, 661, 436, 509, { door: 'left' }),
     mth.c('F', 'mth-femalebath', 577, 525, 'Female Bathroom (Mariano Trias Hall)'), mth.c('M', 'mth-malebath', 576, 559, 'Male Bathroom (Mariano Trias Hall)'),
     // ---- Candido Tirona Hall (CTH) ----
-    ...[[115, 9, 66], [114, 66, 123], [113, 123, 181], [112, 181, 238], [111, 238, 295]]
-      .map(([n, y1, y2]) => cth.room(`cth${n}`, `CTH ${n}`, '', 337, 415, y1, y2, { door: 'right' })),
-    ...[[110, 366, 423], [109, 423, 480], [108, 480, 538], [107, 538, 595], [106, 595, 652]]
-      .map(([n, y1, y2]) => cth.room(`cth${n}`, `CTH ${n}`, '', 337, 415, y1, y2, { door: 'right' })),
-    ...[[101, 397, 460], [102, 460, 523], [103, 523, 587], [104, 587, 650], [105, 650, 713]]
-      .map(([n, y1, y2]) => cth.room(`cth${n}`, `CTH ${n}`, '', 626, 712, y1, y2, { door: 'left' })),
-    cth.room('hesm-faculty', 'HESM Faculty', '', 411, 472, 655, 700, { door: 'top', cat: 'purple' }),
-    cth.c('S', 'cth-stairs-1', 403, 317, 'Stairs'), cth.c('F', 'cth-femalebath-1', 403, 343, 'Female Bathroom (Candido Tirona Hall, left)'),
-    cth.c('F', 'cth-femalebath-2', 612, 340, 'Female Bathroom (Candido Tirona Hall, right)'), cth.c('M', 'cth-malebath', 611, 371, 'Male Bathroom (Candido Tirona Hall)'),
-    cth.c('S', 'cth-stairs-2', 547, 376, 'Stairs'), cth.c('S', 'cth-stairs-3', 545, 675, 'Stairs'),
+    cr('cth113', 'CTH 113', '', 322, 394, 36, 88, { door: 'right' }),
+    cr('cth112', 'Computer Laboratory 4', 'CTH 112', 322, 394, 90, 142, { door: 'right' }),
+    cr('cth111', 'Computer Laboratory 3', 'CTH 111', 322, 394, 144, 196, { door: 'right' }),
+    cr('cth110', 'CTH 110', '', 322, 394, 198, 248, { door: 'right' }),
+    cr('ictc-it-room', 'ICTC IT Room', '', 322, 394, 250, 288, { door: 'right' }),
+    cr('cth109', 'CTH 109', '', 325, 396, 365, 417, { door: 'right' }),
+    cr('cth108', 'CTH 108', '', 325, 396, 419, 471, { door: 'right' }),
+    cr('cth107', 'CTH 107', '', 325, 396, 473, 525, { door: 'right' }),
+    cr('cth106', 'CTH 106', '', 325, 396, 527, 579, { door: 'right' }),
+    cr('cth-storage', 'Storage Room', '', 325, 396, 580, 605, { door: 'right' }),
+    cr('hesm-faculty', 'HESM Faculty', '', 393, 448, 633, 673, { door: 'top', cat: 'purple' }),
+    cr('cth101', 'CTH 101', '', 596, 674, 390, 447, { door: 'left' }),
+    cr('cth102', 'CTH 102', '', 596, 674, 450, 507, { door: 'left' }),
+    cr('cth103', 'CTH 103', '', 596, 674, 509, 566, { door: 'left' }),
+    cr('cth104', 'CTH 104', '', 596, 674, 569, 626, { door: 'left' }),
+    cr('cth105', 'CTH 105', '', 596, 674, 628, 685, { door: 'left' }),
+    ci1('S', 'cth-stairs-1', 384, 314, 'Stairs'), ci1('F', 'cth-femalebath-1', 384, 340, 'Female Bathroom (Candido Tirona Hall, left)'),
+    ci1('F', 'cth-femalebath-2', 580, 397, 'Female Bathroom (Candido Tirona Hall, right)'), ci1('M', 'cth-malebath', 580, 418, 'Male Bathroom (Candido Tirona Hall)'),
+    ci1('S', 'cth-stairs-2', 522, 418, 'Stairs'), ci1('S', 'cth-stairs-3', 518, 650, 'Stairs'), ci1('S', 'cth-stairs-4', 383, 618, 'Stairs'),
   ],
   decor: [
     { type: 'fountain', x: 398, y: 501, name: 'Fountain' },
@@ -508,7 +519,7 @@ function buildFloorGraph(floor) {
   };
 
   floor.waypoints.forEach((wp) => addNode(wp.id, wp.x, wp.y));
-  floor.waypointEdges.forEach(([a, b, pwd, , w, pwdOnly]) => addEdge(a, b, euclidean(nodes[a], nodes[b]) * (w || 1), pwd, pwdOnly));
+  floor.waypointEdges.forEach(([a, b, pwd, , w, pwdOnly, noRoute]) => { if (!noRoute) addEdge(a, b, euclidean(nodes[a], nodes[b]) * (w || 1), pwd, pwdOnly); }); // noRoute = drawn on the map but never walked
   [...floor.rooms, ...floor.connectors].forEach((r) => {
     addNode(r.id, r.nodeX, r.nodeY);
     if (nodes[r.connectsTo]) addEdge(r.id, r.connectsTo, euclidean(nodes[r.id], nodes[r.connectsTo]), true);

@@ -263,3 +263,34 @@
     max-width: 44ch;
   }
 }
+/* Campus photo behind the home screen: faded so the text stays easy to read */
+body.welcome {
+  position: relative;
+  isolation: isolate;
+}
+
+body.welcome::before,
+body.welcome::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body.welcome::before {
+  background: url('../pictures/campus-bg.jpg') center / cover no-repeat;
+  opacity: 0.3;
+}
+
+/* A soft white wash, strongest at the top and bottom where the text sits */
+body.welcome::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.35) 45%, rgba(255, 255, 255, 0.78) 100%);
+}
+
+@media (max-width: 480px) {
+  .welcome-top .brand {
+    font-size: 0.9375rem;
+    white-space: nowrap;
+  }
+}
